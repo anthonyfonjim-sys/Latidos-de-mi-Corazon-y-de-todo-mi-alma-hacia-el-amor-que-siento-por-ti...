@@ -55,8 +55,16 @@
             50% { text-shadow: 0 0 30px rgba(244,63,94,0.7), 0 0 60px rgba(244,63,94,0.3); }
         }
         .animate-text-glow { animation: text-glow 4s infinite ease-in-out; }
+        
+        @keyframes alarm-shake {
+            0%, 100% { transform: translateX(0); }
+            10%, 30%, 50%, 70%, 90% { transform: translateX(-5px) rotate(-2deg); }
+            20%, 40%, 60%, 80% { transform: translateX(5px) rotate(2deg); }
+        }
+        .animate-alarm { animation: alarm-shake 0.5s ease-in-out infinite; }
 
         .moon-glow { box-shadow: 0 0 60px rgba(255, 255, 255, 0.1), inset -10px -10px 20px rgba(0,0,0,0.5); }
+        .event-glow { box-shadow: 0 0 30px rgba(251, 191, 36, 0.2); border: 1px solid rgba(251, 191, 36, 0.4); }
         
         .glass-panel {
             background: rgba(255, 255, 255, 0.03);
@@ -92,6 +100,9 @@
         const SparklesIcon = ({ size = 24, className = "" }) => <svg width={size} height={size} className={className} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1-1.275-1.275L12 3Z"/></svg>;
         const EyeIcon = ({ size=24, className="" }) => <svg width={size} height={size} className={className} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>;
         const EyeOffIcon = ({ size=24, className="" }) => <svg width={size} height={size} className={className} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><path d="M9.88 9.88a3 3 0 1 0 4.24 4.24"/><path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68"/><path d="M6.61 6.61A13.526 13.526 0 0 0 2 12s3 7 10 7a9.74 9.74 0 0 0 5.39-1.61"/><line x1="2" y1="2" x2="22" y2="22"/></svg>;
+        const CalendarIcon = ({ size=24, className="" }) => <svg width={size} height={size} className={className} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>;
+        const BellIcon = ({ size=24, className="" }) => <svg width={size} height={size} className={className} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>;
+        const UserIcon = ({ size=24, className="" }) => <svg width={size} height={size} className={className} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>;
 
         // ==========================================
         // CONFIGURACIÓN FIREBASE
@@ -113,7 +124,7 @@
         const auth = firebase.auth();
 
         // ==========================================
-        // COMPONENTE: EFECTO MAGICO
+        // COMPONENTES AUXILIARES
         // ==========================================
         const ContenedorMagico = ({ children, color = "text-rose-500" }) => {
             const [particulas, setParticulas] = useState([]);
@@ -145,6 +156,17 @@
             );
         };
 
+        const calcularEdad = (fechaNacimiento) => {
+            const hoy = new Date();
+            const cumple = new Date(fechaNacimiento);
+            let edad = hoy.getFullYear() - cumple.getFullYear();
+            const m = hoy.getMonth() - cumple.getMonth();
+            if (m < 0 || (m === 0 && hoy.getDate() < cumple.getDate())) {
+                edad--;
+            }
+            return edad;
+        };
+
         // ==========================================
         // APLICACIÓN PRINCIPAL
         // ==========================================
@@ -153,12 +175,15 @@
             const [diario, setDiario] = useState([]);
             const [latidos, setLatidos] = useState([]);
             const [mensajesSoyin, setMensajesSoyin] = useState([]);
+            const [eventos, setEventos] = useState([]);
+            const [rutinas, setRutinas] = useState([]);
             const [musicUrl, setMusicUrl] = useState("");
+            const [alarmUrl, setAlarmUrl] = useState("");
             const [fechaInicioRelacion, setFechaInicioRelacion] = useState("2025-12-17");
             const [bienvenidaAnthony, setBienvenidaAnthony] = useState({});
             const [bienvenidaSoyin, setBienvenidaSoyin] = useState({});
             
-            // Navegación Limpia y Blindada
+            // Navegación
             const [vistaActual, setVistaActual] = useState('portada'); 
             
             // Interfaz
@@ -166,8 +191,17 @@
             const [idxLatidoHoy, setIdxLatidoHoy] = useState(0);
             const [idxSoyinHoy, setIdxSoyinHoy] = useState(0);
             const [timeElapsed, setTimeElapsed] = useState({ days: 0, hours: 0, mins: 0, secs: 0 });
-            const audioRef = useRef(null);
             
+            // Estado Mágico de Eventos con Tiempo Calculado
+            const [eventosConTiempo, setEventosConTiempo] = useState([]);
+
+            const audioRef = useRef(null);
+            const alarmAudioRef = useRef(null);
+            
+            // Estado para Alarma de Rutina
+            const [rutinaActivaModal, setRutinaActivaModal] = useState(null);
+            const [lastTriggeredTime, setLastTriggeredTime] = useState("");
+
             // Login & Reset
             const [showLogin, setShowLogin] = useState(false);
             const [loginTarget, setLoginTarget] = useState(""); 
@@ -178,14 +212,30 @@
             const [isResettingPassword, setIsResettingPassword] = useState(false);
             const [resetEmail, setResetEmail] = useState("");
             
+            // Forms Compartidos (Calendario / Rutina)
+            const [nuevoEventoTitulo, setNuevoEventoTitulo] = useState("");
+            const [nuevoEventoFecha, setNuevoEventoFecha] = useState("");
+            const [nuevoEventoNota, setNuevoEventoNota] = useState("");
+            
+            const [nuevaRutinaTitulo, setNuevaRutinaTitulo] = useState("");
+            const [nuevaRutinaHora, setNuevaRutinaHora] = useState("");
+
             // Forms Anthony
             const [nuevoTexto, setNuevoTexto] = useState("");
             const [nuevaFecha, setNuevaFecha] = useState("");
             const [nuevaHora, setNuevaHora] = useState("");
             const [tipoMensaje, setTipoMensaje] = useState("latidos"); 
+            const [customDateAnth, setCustomDateAnth] = useState(false);
+
             const [nuevaMusica, setNuevaMusica] = useState("");
+            const [nuevaAlarmaLink, setNuevaAlarmaLink] = useState("");
             const [nuevaFechaRelacion, setNuevaFechaRelacion] = useState("");
+            
             const [formBienvenidaAnthony, setFormBienvenidaAnthony] = useState("");
+            const [customCartaAnth, setCustomCartaAnth] = useState(false);
+            const [fechaCartaAnth, setFechaCartaAnth] = useState("");
+            const [horaCartaAnth, setHoraCartaAnth] = useState("");
+
             const [nuevaPassAnthony, setNuevaPassAnthony] = useState("");
             const [confPassAnthony, setConfPassAnthony] = useState("");
             const [showPassAnth, setShowPassAnth] = useState(false);
@@ -194,16 +244,36 @@
             const [nuevoTextoSoyin, setNuevoTextoSoyin] = useState("");
             const [fechaMensajeSoyin, setFechaMensajeSoyin] = useState("");
             const [horaMensajeSoyin, setHoraMensajeSoyin] = useState("");
+            const [customDateSoyinLatido, setCustomDateSoyinLatido] = useState(false);
+
             const [nuevoDiarioSoyin, setNuevoDiarioSoyin] = useState("");
             const [fechaDiarioSoyin, setFechaDiarioSoyin] = useState("");
             const [horaDiarioSoyin, setHoraDiarioSoyin] = useState("");
+            const [customDateSoyinDiario, setCustomDateSoyinDiario] = useState(false);
+
             const [formBienvenidaSoyin, setFormBienvenidaSoyin] = useState("");
+            const [customCartaSoyin, setCustomCartaSoyin] = useState(false);
+            const [fechaCartaSoyin, setFechaCartaSoyin] = useState("");
+            const [horaCartaSoyin, setHoraCartaSoyin] = useState("");
+
             const [nuevaPassSoyin, setNuevaPassSoyin] = useState("");
             const [confPassSoyin, setConfPassSoyin] = useState("");
             const [showPassSoyin, setShowPassSoyin] = useState(false);
 
+            // TABS de Administración
+            const [adminTabAnth, setAdminTabAnth] = useState("publicar"); // publicar, calendario, rutinas
+            const [adminTabSoyin, setAdminTabSoyin] = useState("publicar"); // publicar, calendario, rutinas
+
+            // Edit Modal State
+            const [editModal, setEditModal] = useState({ show: false, coleccion: '', id: '', texto: '', fecha: '', hora: '' });
+
             const isAnthony = user?.email === CORREO_ANTHONY;
             const isSoyin = user?.email === CORREO_SOYIN;
+
+            const datosPersonales = {
+                anthony: { nombre: "Anthony Enrique Fonseca Jiménez", fechaNac: "2003-10-28" },
+                soyin: { nombre: "Flor Soyin Castillo Ibañez", fechaNac: "2006-11-17" }
+            };
 
             // Funciones Mágicas de Fechas y Segundos
             const obtenerFechaHoyLocal = () => {
@@ -216,7 +286,7 @@
 
             const obtenerHoraExacta = () => {
                 const hoy = new Date();
-                return hoy.toLocaleTimeString('es-ES', {hour: '2-digit', minute:'2-digit', second:'2-digit'});
+                return hoy.toLocaleTimeString('es-ES', {hour: '2-digit', minute:'2-digit'});
             };
 
             const formatearFechaHora = (fecha, hora) => {
@@ -242,46 +312,111 @@
                 try {
                     const d = ts.toDate ? ts.toDate() : new Date(ts);
                     if(isNaN(d.getTime())) return "Publicado hoy";
-                    return d.toLocaleDateString('es-ES', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' });
+                    return d.toLocaleDateString('es-ES', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' });
                 } catch(e) { return "Publicado hoy"; }
             };
 
-            // Cronómetro
+            // Ordena un array cronológicamente
+            const ordenarCronologicamente = (arr, ascendente = false) => {
+                return [...arr].sort((a, b) => {
+                    const dateA = new Date(`${a.fecha}T${a.hora || '00:00'}`).getTime();
+                    const dateB = new Date(`${b.fecha}T${b.hora || '00:00'}`).getTime();
+                    if (isNaN(dateA) || isNaN(dateB)) return 0;
+                    return ascendente ? dateA - dateB : dateB - dateA;
+                });
+            };
+
+            const getNextBirthday = (month, day) => {
+                const currentYear = new Date().getFullYear();
+                let bday = new Date(currentYear, month - 1, day);
+                const today = new Date();
+                today.setHours(0,0,0,0);
+                if (bday < today) bday.setFullYear(currentYear + 1);
+                return `${bday.getFullYear()}-${String(bday.getMonth()+1).padStart(2,'0')}-${String(bday.getDate()).padStart(2,'0')}`;
+            };
+
+            // Cronómetro Relación y Eventos Próximos (Con Tiempos Calculados)
             useEffect(() => {
                 const startDate = new Date(fechaInicioRelacion + 'T00:00:00');
                 const timer = setInterval(() => {
-                    const diff = new Date() - startDate;
-                    if (diff > 0) {
+                    const now = new Date();
+                    
+                    // Cronómetro Relación
+                    const diffRel = now - startDate;
+                    if (diffRel > 0) {
                         setTimeElapsed({
-                            days: Math.floor(diff / (1000 * 60 * 60 * 24)),
-                            hours: Math.floor((diff / (1000 * 60 * 60)) % 24),
-                            mins: Math.floor((diff / 1000 / 60) % 60),
-                            secs: Math.floor((diff / 1000) % 60)
+                            days: Math.floor(diffRel / (1000 * 60 * 60 * 24)),
+                            hours: Math.floor((diffRel / (1000 * 60 * 60)) % 24),
+                            mins: Math.floor((diffRel / 1000 / 60) % 60),
+                            secs: Math.floor((diffRel / 1000) % 60)
                         });
                     }
+
+                    // Contador General de Eventos
+                    const eventosPorDefecto = [
+                        { id: 'bday-anthony', titulo: '🎂 Cumpleaños de Anthony', fecha: getNextBirthday(10, 28), nota: '¡Un día muy especial para celebrar la vida de Anthony Enrique!', autor: 'Sistema', isDefault: true },
+                        { id: 'bday-soyin', titulo: '🎂 Cumpleaños de Soyin', fecha: getNextBirthday(11, 17), nota: '¡Un día mágico para celebrar a mi amada Flor Soyin!', autor: 'Sistema', isDefault: true }
+                    ];
+                    const eventosCombinados = [...eventos, ...eventosPorDefecto];
+
+                    const calculados = eventosCombinados.map(ev => {
+                        const evDate = new Date(`${ev.fecha}T00:00:00`);
+                        const diffTime = evDate - now;
+                        if (diffTime > 0) {
+                            return {
+                                ...ev,
+                                isPast: false,
+                                timeLeft: {
+                                    days: Math.floor(diffTime / (1000 * 60 * 60 * 24)),
+                                    hours: Math.floor((diffTime / (1000 * 60 * 60)) % 24),
+                                    mins: Math.floor((diffTime / 1000 / 60) % 60),
+                                    secs: Math.floor((diffTime / 1000) % 60)
+                                }
+                            };
+                        } else {
+                            return { ...ev, isPast: true };
+                        }
+                    });
+                    
+                    setEventosConTiempo(calculados);
                 }, 1000);
                 return () => clearInterval(timer);
-            }, [fechaInicioRelacion]);
+            }, [fechaInicioRelacion, eventos]);
+
+            // Rutinas Alarma Listener
+            useEffect(() => {
+                const checkAlarms = setInterval(() => {
+                    const now = new Date();
+                    const currentHourMinute = now.toLocaleTimeString('es-ES', {hour: '2-digit', minute:'2-digit'});
+                    
+                    const triggeredRoutine = rutinas.find(r => r.hora === currentHourMinute && r.activa);
+                    
+                    if (triggeredRoutine && lastTriggeredTime !== currentHourMinute) {
+                        setLastTriggeredTime(currentHourMinute);
+                        setRutinaActivaModal(triggeredRoutine);
+                        if(alarmAudioRef.current) {
+                            alarmAudioRef.current.currentTime = 0;
+                            alarmAudioRef.current.play().catch(e => console.log("Audio play blocked by browser. User needs to interact first.", e));
+                        }
+                    }
+                }, 5000); 
+                return () => clearInterval(checkAlarms);
+            }, [rutinas, lastTriggeredTime]);
 
             // Base de Datos Listener
             useEffect(() => {
                 const unsubAuth = auth.onAuthStateChanged(u => setUser(u));
                 
-                const unsubLatidos = db.collection("latidos").orderBy("timestamp", "desc").onSnapshot(snap => {
-                    setLatidos(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
-                });
-                
-                const unsubDiario = db.collection("diario").orderBy("timestamp", "desc").onSnapshot(snap => {
-                    setDiario(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
-                });
-
-                const unsubSoyinMsgs = db.collection("mensajes_soyin").orderBy("timestamp", "desc").onSnapshot(snap => {
-                    setMensajesSoyin(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
-                });
+                const unsubLatidos = db.collection("latidos").orderBy("timestamp", "desc").onSnapshot(snap => setLatidos(snap.docs.map(d => ({ id: d.id, ...d.data() }))));
+                const unsubDiario = db.collection("diario").orderBy("timestamp", "desc").onSnapshot(snap => setDiario(snap.docs.map(d => ({ id: d.id, ...d.data() }))));
+                const unsubSoyinMsgs = db.collection("mensajes_soyin").orderBy("timestamp", "desc").onSnapshot(snap => setMensajesSoyin(snap.docs.map(d => ({ id: d.id, ...d.data() }))));
+                const unsubEventos = db.collection("calendario").orderBy("timestamp", "desc").onSnapshot(snap => setEventos(snap.docs.map(d => ({ id: d.id, ...d.data() }))));
+                const unsubRutinas = db.collection("rutinas").orderBy("timestamp", "desc").onSnapshot(snap => setRutinas(snap.docs.map(d => ({ id: d.id, ...d.data() }))));
 
                 const unsubConfig = db.collection("configuracion").doc("general").onSnapshot(doc => {
                     if (doc.exists) { 
                         setMusicUrl(doc.data().musicUrl); setNuevaMusica(doc.data().musicUrl); 
+                        setAlarmUrl(doc.data().alarmUrl); setNuevaAlarmaLink(doc.data().alarmUrl || "");
                         if(doc.data().fechaInicioRelacion) {
                             setFechaInicioRelacion(doc.data().fechaInicioRelacion);
                             setNuevaFechaRelacion(doc.data().fechaInicioRelacion);
@@ -290,14 +425,22 @@
                 });
 
                 const unsubBienvenidaAnth = db.collection("bienvenida").doc("anthony").onSnapshot(doc => {
-                    if (doc.exists) { setBienvenidaAnthony(doc.data()); setFormBienvenidaAnthony(doc.data().texto || ""); }
+                    if (doc.exists) { 
+                        const data = doc.data();
+                        setBienvenidaAnthony(data); setFormBienvenidaAnthony(data.texto || ""); 
+                        if(data.fecha) { setCustomCartaAnth(true); setFechaCartaAnth(data.fecha); setHoraCartaAnth(data.hora || ""); }
+                    }
                 });
 
                 const unsubBienvenidaSoy = db.collection("bienvenida").doc("soyin").onSnapshot(doc => {
-                    if (doc.exists) { setBienvenidaSoyin(doc.data()); setFormBienvenidaSoyin(doc.data().texto || ""); }
+                    if (doc.exists) { 
+                        const data = doc.data();
+                        setBienvenidaSoyin(data); setFormBienvenidaSoyin(data.texto || ""); 
+                        if(data.fecha) { setCustomCartaSoyin(true); setFechaCartaSoyin(data.fecha); setHoraCartaSoyin(data.hora || ""); }
+                    }
                 });
 
-                return () => { unsubAuth(); unsubLatidos(); unsubDiario(); unsubSoyinMsgs(); unsubConfig(); unsubBienvenidaAnth(); unsubBienvenidaSoy(); };
+                return () => { unsubAuth(); unsubLatidos(); unsubDiario(); unsubSoyinMsgs(); unsubEventos(); unsubRutinas(); unsubConfig(); unsubBienvenidaAnth(); unsubBienvenidaSoy(); };
             }, []);
 
             // Filtros Estrictos de HOY
@@ -305,10 +448,24 @@
             const latidosHoy = latidos.filter(l => l.fecha === hoyStr);
             const mensajesSoyinHoy = mensajesSoyin.filter(m => m.fecha === hoyStr);
 
+            // Historiales Ordenados Cronológicamente
+            const diarioOrdenado = ordenarCronologicamente(diario);
+            const latidosOrdenados = ordenarCronologicamente(latidos);
+            const mensajesSoyinOrdenados = ordenarCronologicamente(mensajesSoyin);
+
+            const eventosOrdenados = ordenarCronologicamente(eventosConTiempo, true); // Ascendente para eventos
+            const eventosCercanos = eventosConTiempo.filter(ev => !ev.isPast && ev.timeLeft && ev.timeLeft.days <= 3);
+            const rutinasOrdenadas = rutinas.sort((a, b) => a.hora.localeCompare(b.hora)); 
+
             const toggleMusic = () => {
                 if (isPlaying) audioRef.current.pause();
                 else audioRef.current.play().catch(e => console.log(e));
                 setIsPlaying(!isPlaying);
+            };
+
+            const cerrarAlarma = () => {
+                setRutinaActivaModal(null);
+                if(alarmAudioRef.current) alarmAudioRef.current.pause();
             };
 
             const abrirPanelLogin = (quien) => {
@@ -324,11 +481,8 @@
 
             const handleLogin = async (e) => {
                 e.preventDefault();
-                try {
-                    await auth.signInWithEmailAndPassword(email, password);
-                } catch (error) {
-                    alert("Error: Verifica tus credenciales. (" + error.message + ")");
-                }
+                try { await auth.signInWithEmailAndPassword(email, password); } 
+                catch (error) { alert("Error: Verifica tus credenciales. (" + error.message + ")"); }
             };
 
             const handleResetPassword = async (e) => {
@@ -338,73 +492,96 @@
                     await auth.sendPasswordResetEmail(resetEmail);
                     alert("✅ Te hemos enviado un enlace para restablecer tu contraseña. Revisa tu bandeja de entrada o la carpeta de Spam.");
                     setIsResettingPassword(false);
-                } catch (error) {
-                    alert("❌ Error: " + error.message);
-                }
+                } catch (error) { alert("❌ Error: " + error.message); }
             };
 
-            const cerrarSesion = () => {
-                auth.signOut();
-                setShowLogin(false);
-            };
+            const cerrarSesion = () => { auth.signOut(); setShowLogin(false); };
 
             const cambiarPassword = async (e, nuevaPass, confPass, setNuevaPass, setConfPass) => {
                 e.preventDefault();
                 if(!auth.currentUser) return alert("Sesión expirada");
-                if(nuevaPass !== confPass) return alert("❌ Error: Las contraseñas no coinciden. Revisa que ambas sean idénticas.");
+                if(nuevaPass !== confPass) return alert("❌ Error: Las contraseñas no coinciden.");
                 if(nuevaPass.length < 6) return alert("❌ Error: La contraseña debe tener al menos 6 caracteres.");
                 try {
                     await auth.currentUser.updatePassword(nuevaPass);
-                    alert("✅ ¡Contraseña actualizada con éxito! Úsala la próxima vez que entres.");
+                    alert("✅ ¡Contraseña actualizada con éxito!");
                     setNuevaPass(""); setConfPass("");
                 } catch (error) {
-                    if (error.code === 'auth/requires-recent-login') {
-                        alert("⚠️ Por seguridad, necesitas volver a Iniciar Sesión para cambiar la contraseña. Cierra sesión y vuelve a entrar.");
-                    } else {
-                        alert("Error: " + error.message);
-                    }
+                    if (error.code === 'auth/requires-recent-login') alert("⚠️ Por seguridad, necesitas volver a Iniciar Sesión para cambiar la contraseña. Cierra sesión y vuelve a entrar.");
+                    else alert("Error: " + error.message);
                 }
             };
 
-            const editarDocumento = async (coleccion, id, textoActual) => {
-                const nuevoTexto = window.prompt("Edita tu mensaje:", textoActual);
-                if (nuevoTexto && nuevoTexto !== textoActual) {
-                    await db.collection(coleccion).doc(id).update({ texto: nuevoTexto });
-                }
+            const abrirEditor = (coleccion, id, texto, fecha, hora) => {
+                setEditModal({ show: true, coleccion, id, texto, fecha: fecha || obtenerFechaHoyLocal(), hora: hora || obtenerHoraExacta() });
             };
 
-            const eliminarDocumento = async (coleccion, id) => {
-                if(window.confirm("¿Seguro que quieres borrar este recuerdo?")) await db.collection(coleccion).doc(id).delete();
+            const guardarEdicion = async () => {
+                if (!editModal.texto) return alert("El texto no puede estar vacío");
+                try {
+                    await db.collection(editModal.coleccion).doc(editModal.id).update({ texto: editModal.texto, fecha: editModal.fecha, hora: editModal.hora });
+                    setEditModal({ show: false, coleccion: '', id: '', texto: '', fecha: '', hora: '' });
+                    alert("¡Recuerdo editado y guardado con éxito!");
+                } catch (error) { alert("Hubo un error al editar: " + error.message); }
+            };
+
+            const eliminarDocumento = async (coleccion, id, mensaje = "¿Seguro que quieres borrar este recuerdo?") => {
+                if(window.confirm(mensaje)) await db.collection(coleccion).doc(id).delete();
+            };
+
+            const toggleRutina = async (id, estadoActual) => {
+                await db.collection("rutinas").doc(id).update({ activa: !estadoActual });
+            };
+
+            const agregarEvento = async (e, autor) => {
+                e.preventDefault();
+                if(!nuevoEventoTitulo || !nuevoEventoFecha) return alert("Faltan datos.");
+                await db.collection("calendario").add({
+                    titulo: nuevoEventoTitulo,
+                    fecha: nuevoEventoFecha,
+                    nota: nuevoEventoNota,
+                    autor: autor,
+                    timestamp: firebase.firestore.FieldValue.serverTimestamp()
+                });
+                setNuevoEventoTitulo(""); setNuevoEventoFecha(""); setNuevoEventoNota("");
+                alert("¡Fecha importante guardada en el calendario!");
+            };
+
+            const agregarRutina = async (e, autor) => {
+                e.preventDefault();
+                if(!nuevaRutinaTitulo || !nuevaRutinaHora) return alert("Faltan datos.");
+                await db.collection("rutinas").add({
+                    titulo: nuevaRutinaTitulo,
+                    hora: nuevaRutinaHora,
+                    activa: true,
+                    autor: autor,
+                    timestamp: firebase.firestore.FieldValue.serverTimestamp()
+                });
+                setNuevaRutinaTitulo(""); setNuevaRutinaHora("");
+                alert("¡Rutina programada!");
             };
 
             // FUNCIONES AUTOMÁTICAS DE GUARDADO (Anthony)
             const publicarMensajeAnthony = async(e) => {
                 e.preventDefault(); 
                 if(!nuevoTexto) return alert("Escribe un mensaje, por favor."); 
-                const fechaFinal = nuevaFecha || obtenerFechaHoyLocal();
-                const horaFinal = nuevaHora || obtenerHoraExacta();
+                const fechaFinal = customDateAnth && nuevaFecha ? nuevaFecha : obtenerFechaHoyLocal();
+                const horaFinal = customDateAnth && nuevaHora ? nuevaHora : obtenerHoraExacta();
 
                 try {
-                    await db.collection(tipoMensaje).add({
-                        texto: nuevoTexto, 
-                        fecha: fechaFinal, 
-                        hora: horaFinal, 
-                        autor: 'anthony', 
-                        timestamp: firebase.firestore.FieldValue.serverTimestamp()
-                    }); 
-                    setNuevoTexto(""); setNuevaFecha(""); setNuevaHora("");
+                    await db.collection(tipoMensaje).add({ texto: nuevoTexto, fecha: fechaFinal, hora: horaFinal, autor: 'anthony', timestamp: firebase.firestore.FieldValue.serverTimestamp() }); 
+                    setNuevoTexto(""); setNuevaFecha(""); setNuevaHora(""); setCustomDateAnth(false);
                     alert("¡Publicado mágicamente!"); 
-                } catch(error) {
-                    alert("Hubo un error al guardar: " + error.message);
-                }
+                } catch(error) { alert("Hubo un error al guardar: " + error.message); }
             };
 
             const guardarBienvenidaAnthony = async (e) => {
                 e.preventDefault();
-                await db.collection("bienvenida").doc("anthony").set({texto: formBienvenidaAnthony, timestamp: firebase.firestore.FieldValue.serverTimestamp()});
-                await db.collection("diario").add({
-                    texto: `[Carta de Entrada]: ${formBienvenidaAnthony}`, fecha: obtenerFechaHoyLocal(), hora: obtenerHoraExacta(), autor: 'anthony', timestamp: firebase.firestore.FieldValue.serverTimestamp()
-                });
+                const fechaFinal = customCartaAnth && fechaCartaAnth ? fechaCartaAnth : obtenerFechaHoyLocal();
+                const horaFinal = customCartaAnth && horaCartaAnth ? horaCartaAnth : obtenerHoraExacta();
+
+                await db.collection("bienvenida").doc("anthony").set({ texto: formBienvenidaAnthony, fecha: fechaFinal, hora: horaFinal, timestamp: firebase.firestore.FieldValue.serverTimestamp() });
+                await db.collection("diario").add({ texto: `[Carta de Entrada]: ${formBienvenidaAnthony}`, fecha: fechaFinal, hora: horaFinal, autor: 'anthony', timestamp: firebase.firestore.FieldValue.serverTimestamp() });
                 alert("Mensaje de entrada actualizado y guardado en tu historia");
             };
 
@@ -412,36 +589,110 @@
             const publicarDiarioSoyin = async(e) => {
                 e.preventDefault(); 
                 if(!nuevoDiarioSoyin) return; 
-                const fechaFinal = fechaDiarioSoyin || obtenerFechaHoyLocal();
-                const horaFinal = horaDiarioSoyin || obtenerHoraExacta();
+                const fechaFinal = customDateSoyinDiario && fechaDiarioSoyin ? fechaDiarioSoyin : obtenerFechaHoyLocal();
+                const horaFinal = customDateSoyinDiario && horaDiarioSoyin ? horaDiarioSoyin : obtenerHoraExacta();
+
                 await db.collection("diario").add({texto: nuevoDiarioSoyin, fecha: fechaFinal, hora: horaFinal, autor: 'soyin', timestamp: firebase.firestore.FieldValue.serverTimestamp()}); 
-                setNuevoDiarioSoyin(""); setFechaDiarioSoyin(""); setHoraDiarioSoyin("");
+                setNuevoDiarioSoyin(""); setFechaDiarioSoyin(""); setHoraDiarioSoyin(""); setCustomDateSoyinDiario(false);
                 alert("¡Historia guardada en el Diario!"); 
             };
 
             const publicarMensajeCortoSoyin = async(e) => {
                 e.preventDefault(); 
                 if(!nuevoTextoSoyin) return; 
-                const fechaFinal = fechaMensajeSoyin || obtenerFechaHoyLocal();
-                const horaFinal = horaMensajeSoyin || obtenerHoraExacta();
+                const fechaFinal = customDateSoyinLatido && fechaMensajeSoyin ? fechaMensajeSoyin : obtenerFechaHoyLocal();
+                const horaFinal = customDateSoyinLatido && horaMensajeSoyin ? horaMensajeSoyin : obtenerHoraExacta();
+
                 await db.collection("mensajes_soyin").add({texto: nuevoTextoSoyin, fecha: fechaFinal, hora: horaFinal, timestamp: firebase.firestore.FieldValue.serverTimestamp()}); 
-                setNuevoTextoSoyin(""); setFechaMensajeSoyin(""); setHoraMensajeSoyin("");
+                setNuevoTextoSoyin(""); setFechaMensajeSoyin(""); setHoraMensajeSoyin(""); setCustomDateSoyinLatido(false);
                 alert("¡Latido guardado en tu historial (y en portada si es de hoy)!"); 
             };
 
             const guardarBienvenidaSoyin = async (e) => {
                 e.preventDefault();
-                await db.collection("bienvenida").doc("soyin").set({texto: formBienvenidaSoyin, timestamp: firebase.firestore.FieldValue.serverTimestamp()});
-                await db.collection("diario").add({
-                    texto: `[Carta de Entrada]: ${formBienvenidaSoyin}`, fecha: obtenerFechaHoyLocal(), hora: obtenerHoraExacta(), autor: 'soyin', timestamp: firebase.firestore.FieldValue.serverTimestamp()
-                });
+                const fechaFinal = customCartaSoyin && fechaCartaSoyin ? fechaCartaSoyin : obtenerFechaHoyLocal();
+                const horaFinal = customCartaSoyin && horaCartaSoyin ? horaCartaSoyin : obtenerHoraExacta();
+
+                await db.collection("bienvenida").doc("soyin").set({ texto: formBienvenidaSoyin, fecha: fechaFinal, hora: horaFinal, timestamp: firebase.firestore.FieldValue.serverTimestamp() });
+                await db.collection("diario").add({ texto: `[Carta de Entrada]: ${formBienvenidaSoyin}`, fecha: fechaFinal, hora: horaFinal, autor: 'soyin', timestamp: firebase.firestore.FieldValue.serverTimestamp() });
                 alert("Mensaje de entrada actualizado y guardado en tu historia");
+            };
+
+            // COMPONENTE: SELECTOR DE FECHA (DOBLE BOTÓN)
+            const DateSelector = ({ isCustom, setIsCustom, fecha, setFecha, hora, setHora, colorTheme = "rose" }) => {
+                const btnColor = colorTheme === "purple" ? "bg-purple-600/50 border-purple-500" : "bg-rose-600/50 border-rose-500";
+                const focusColor = colorTheme === "purple" ? "focus:border-purple-500" : "focus:border-rose-500";
+
+                const handleSetCustom = (val) => {
+                    setIsCustom(val);
+                    if(val && !fecha) setFecha(obtenerFechaHoyLocal());
+                    if(val && !hora) setHora(obtenerHoraExacta());
+                };
+
+                return (
+                    <div className="flex flex-col gap-2 w-full mt-2">
+                        <div className="flex gap-2">
+                            <button type="button" onClick={() => handleSetCustom(false)} className={`flex-1 p-2 rounded-lg text-[10px] uppercase tracking-widest transition-colors ${!isCustom ? btnColor + ' text-white border' : 'bg-black/40 text-gray-400 border border-white/10 hover:bg-white/5'}`}>Momento Actual</button>
+                            <button type="button" onClick={() => handleSetCustom(true)} className={`flex-1 p-2 rounded-lg text-[10px] uppercase tracking-widest transition-colors ${isCustom ? btnColor + ' text-white border' : 'bg-black/40 text-gray-400 border border-white/10 hover:bg-white/5'}`}>Elegir Fecha Exacta</button>
+                        </div>
+                        {isCustom && (
+                            <div className="grid grid-cols-2 gap-4 animate-in mt-1">
+                                <input type="date" required value={fecha} onChange={e=>setFecha(e.target.value)} className={`p-3 bg-black/40 border border-white/10 rounded-xl outline-none [color-scheme:dark] text-sm text-white ${focusColor}`} />
+                                <input type="time" required value={hora} onChange={e=>setHora(e.target.value)} className={`p-3 bg-black/40 border border-white/10 rounded-xl outline-none [color-scheme:dark] text-sm text-white ${focusColor}`} />
+                            </div>
+                        )}
+                    </div>
+                );
             };
 
             const [stars] = useState(() => Array.from({ length: 60 }).map((_, i) => ({
                 id: i, left: `${Math.random() * 100}%`, top: `${Math.random() * 100}%`,
                 animationDuration: `${2 + Math.random() * 4}s`, animationDelay: `${Math.random() * 5}s`
             })));
+
+            // ==========================================
+            // MODAL GLOBAL DE EDICIÓN
+            // ==========================================
+            const EditModalComponent = () => {
+                if (!editModal.show) return null;
+                const isSoyinModal = user?.email === CORREO_SOYIN;
+
+                return (
+                    <div className="fixed inset-0 bg-black/80 z-[100] flex items-center justify-center p-4 backdrop-blur-md animate-in">
+                        <div className={`border p-6 md:p-8 rounded-3xl w-full max-w-md shadow-2xl relative ${isSoyinModal ? 'bg-[#0f0a1c] border-purple-500/30 shadow-[0_0_40px_rgba(168,85,247,0.2)]' : 'bg-[#1a0a0f] border-rose-500/30 shadow-[0_0_40px_rgba(225,29,72,0.2)]'}`}>
+                            <h3 className={`font-name text-3xl mb-4 ${isSoyinModal ? 'text-purple-300' : 'text-rose-400'}`}>Editar Recuerdo</h3>
+                            <textarea value={editModal.texto} onChange={e=>setEditModal({...editModal, texto: e.target.value})} className={`w-full h-32 bg-black/50 border border-white/10 rounded-xl p-4 text-white mb-4 outline-none text-sm ${isSoyinModal ? 'focus:border-purple-500' : 'focus:border-rose-500'}`}></textarea>
+                            <label className="text-[10px] text-gray-400 uppercase tracking-widest mb-2 block">Editar Fecha y Hora de Publicación</label>
+                            <div className="grid grid-cols-2 gap-4 mb-6">
+                                <input type="date" value={editModal.fecha} onChange={e=>setEditModal({...editModal, fecha: e.target.value})} className={`p-3 bg-black/50 border border-white/10 rounded-xl outline-none [color-scheme:dark] text-sm text-white ${isSoyinModal ? 'focus:border-purple-500' : 'focus:border-rose-500'}`} required/>
+                                <input type="time" value={editModal.hora} onChange={e=>setEditModal({...editModal, hora: e.target.value})} className={`p-3 bg-black/50 border border-white/10 rounded-xl outline-none [color-scheme:dark] text-sm text-white ${isSoyinModal ? 'focus:border-purple-500' : 'focus:border-rose-500'}`} required/>
+                            </div>
+                            <div className="flex gap-3">
+                                <button onClick={guardarEdicion} className={`flex-1 text-white p-3 rounded-xl text-xs uppercase tracking-widest font-bold transition-all shadow-lg ${isSoyinModal ? 'bg-purple-600 hover:bg-purple-700' : 'bg-rose-600 hover:bg-rose-700'}`}>Guardar</button>
+                                <button onClick={()=>setEditModal({show:false, coleccion:'', id:'', texto:'', fecha:'', hora:''})} className="flex-1 bg-white/10 hover:bg-white/20 text-white p-3 rounded-xl text-xs uppercase tracking-widest font-bold transition-all border border-white/10">Cancelar</button>
+                            </div>
+                        </div>
+                    </div>
+                );
+            };
+
+            // ==========================================
+            // MODAL DE ALARMA DE RUTINA
+            // ==========================================
+            const RutinaAlarmaModal = () => {
+                if (!rutinaActivaModal) return null;
+                return (
+                    <div className="fixed inset-0 bg-black/80 z-[200] flex items-center justify-center p-4 backdrop-blur-xl animate-in">
+                        <div className="border border-yellow-500/50 bg-[#1a160a] p-8 rounded-[3rem] w-full max-w-sm text-center shadow-[0_0_80px_rgba(234,179,8,0.3)] animate-alarm">
+                            <div className="flex justify-center mb-6"><BellIcon size={60} className="text-yellow-400 drop-shadow-[0_0_20px_rgba(250,204,21,0.8)]"/></div>
+                            <h2 className="font-name text-4xl text-yellow-300 mb-2">¡Es Hora!</h2>
+                            <p className="text-[10px] text-yellow-500/60 uppercase tracking-widest font-bold mb-6">Recordatorio de Rutina</p>
+                            <p className="text-xl md:text-2xl text-yellow-100 font-body mb-8">"{rutinaActivaModal.titulo}"</p>
+                            <button onClick={cerrarAlarma} className="w-full bg-yellow-500 hover:bg-yellow-600 text-[#020205] p-4 rounded-2xl text-sm uppercase tracking-[0.2em] font-bold transition-all shadow-lg">Entendido</button>
+                        </div>
+                    </div>
+                );
+            };
 
             // ==========================================
             // VISTA: LOGIN Y PANELES ADMINISTRATIVOS
@@ -455,7 +706,7 @@
                             </div>
                             
                             {isResettingPassword ? (
-                                <form onSubmit={handleResetPassword} className="glass-panel p-8 rounded-3xl w-full max-w-md flex flex-col gap-5 relative z-10 shadow-[0_0_40px_rgba(0,0,0,0.5)]">
+                                <form onSubmit={handleResetPassword} className="glass-panel p-8 rounded-3xl w-full max-w-md flex flex-col gap-5 relative z-10 shadow-[0_0_40px_rgba(0,0,0,0.5)] animate-in">
                                     <h2 className={`font-name text-3xl text-center mb-2 ${loginTarget === 'soyin' ? 'text-purple-400' : 'text-rose-400'}`}>Recuperar Contraseña</h2>
                                     <p className="text-[10px] text-gray-300 text-center uppercase tracking-widest mb-2">Ingresa tu correo para recibir el enlace seguro</p>
                                     <input type="email" placeholder="Correo electrónico" required className={`p-3 bg-black/50 border border-white/10 rounded-lg outline-none ${loginTarget === 'soyin' ? 'focus:border-purple-500' : 'focus:border-rose-500'}`} value={resetEmail} onChange={e => setResetEmail(e.target.value)} />
@@ -463,7 +714,7 @@
                                     <button type="button" onClick={() => setIsResettingPassword(false)} className="text-xs text-gray-400 hover:text-white mt-2 uppercase tracking-widest transition-colors text-center">Volver atrás</button>
                                 </form>
                             ) : (
-                                <form onSubmit={handleLogin} className="glass-panel p-8 rounded-3xl w-full max-w-md flex flex-col gap-5 relative z-10 shadow-[0_0_40px_rgba(0,0,0,0.5)]">
+                                <form onSubmit={handleLogin} className="glass-panel p-8 rounded-3xl w-full max-w-md flex flex-col gap-5 relative z-10 shadow-[0_0_40px_rgba(0,0,0,0.5)] animate-in">
                                     <h2 className={`font-name text-4xl text-center mb-2 ${loginTarget === 'soyin' ? 'text-purple-400' : 'text-rose-400'}`}>
                                         {loginTarget === 'soyin' ? 'Acceso Soyin' : 'Acceso Anthony'}
                                     </h2>
@@ -489,8 +740,8 @@
                 if (isAnthony) {
                     return (
                         <div className="min-h-screen p-4 md:p-8 font-body bg-[#020205] relative z-50">
-                            <div className="max-w-5xl mx-auto glass-panel p-6 md:p-8 rounded-3xl animate-in">
-                                <div className="flex flex-wrap justify-between items-center mb-8 gap-4 border-b border-white/10 pb-6">
+                            <div className="max-w-6xl mx-auto glass-panel p-6 md:p-8 rounded-3xl animate-in">
+                                <div className="flex flex-wrap justify-between items-center mb-6 gap-4 border-b border-white/10 pb-6">
                                     <h2 className="font-name text-4xl text-rose-300">Panel Máster</h2>
                                     <div className="flex flex-wrap gap-4 items-center bg-black/20 p-2 px-4 rounded-2xl border border-white/5">
                                         <form onSubmit={(e) => cambiarPassword(e, nuevaPassAnthony, confPassAnthony, setNuevaPassAnthony, setConfPassAnthony)} className="flex items-center gap-2 mr-2 border-r border-white/10 pr-4">
@@ -502,72 +753,188 @@
                                             <button type="submit" className="text-[9px] bg-rose-600 hover:bg-rose-700 text-white px-3 py-2 rounded uppercase tracking-widest font-bold shadow-lg">Actualizar</button>
                                         </form>
                                         <button onClick={() => setShowLogin(false)} className="text-[10px] text-rose-300 border border-rose-500/30 px-4 py-2 rounded-full hover:bg-white/5 uppercase tracking-widest transition-colors">Cerrar Panel</button>
-                                        <button onClick={cerrarSesion} className="text-[10px] text-gray-400 border border-white/10 hover:text-white px-4 py-2 rounded-full uppercase tracking-widest transition-colors">Salir de Sesión</button>
+                                        <button onClick={cerrarSesion} className="text-[10px] text-gray-400 border border-white/10 hover:text-white px-4 py-2 rounded-full uppercase tracking-widest transition-colors">Salir</button>
                                     </div>
                                 </div>
 
+                                {/* PERFIL PERSONAL */}
+                                <div className="bg-gradient-to-r from-rose-900/20 to-black/20 p-5 rounded-2xl border border-rose-500/30 flex items-center gap-5 shadow-[0_0_30px_rgba(225,29,72,0.1)] mb-8">
+                                    <div className="w-16 h-16 rounded-full bg-rose-600 flex items-center justify-center text-white shadow-lg border-2 border-rose-400/50"><UserIcon size={32}/></div>
+                                    <div>
+                                        <h3 className="text-rose-100 font-bold font-name text-3xl mb-1">{datosPersonales.anthony.nombre}</h3>
+                                        <p className="text-[10px] text-rose-300/60 tracking-widest uppercase font-bold flex items-center gap-2">
+                                            28 de Octubre, 2003 <span className="w-1.5 h-1.5 rounded-full bg-rose-500"></span> {calcularEdad(datosPersonales.anthony.fechaNac)} Años de edad
+                                        </p>
+                                    </div>
+                                </div>
+
+                                {/* PESTAÑAS DE NAVEGACIÓN INTERNA */}
+                                <div className="flex gap-2 mb-6 border-b border-white/10 pb-4 overflow-x-auto">
+                                    <button onClick={()=>setAdminTabAnth('publicar')} className={`px-6 py-3 rounded-xl text-xs uppercase tracking-widest font-bold transition-all whitespace-nowrap ${adminTabAnth === 'publicar' ? 'bg-rose-600 text-white shadow-[0_0_20px_rgba(225,29,72,0.4)]' : 'bg-white/5 text-gray-400 hover:bg-white/10'}`}>✍️ Publicaciones</button>
+                                    <button onClick={()=>setAdminTabAnth('calendario')} className={`px-6 py-3 rounded-xl text-xs uppercase tracking-widest font-bold transition-all whitespace-nowrap ${adminTabAnth === 'calendario' ? 'bg-rose-600 text-white shadow-[0_0_20px_rgba(225,29,72,0.4)]' : 'bg-white/5 text-gray-400 hover:bg-white/10'}`}>📅 Fechas y Eventos</button>
+                                    <button onClick={()=>setAdminTabAnth('rutinas')} className={`px-6 py-3 rounded-xl text-xs uppercase tracking-widest font-bold transition-all whitespace-nowrap ${adminTabAnth === 'rutinas' ? 'bg-rose-600 text-white shadow-[0_0_20px_rgba(225,29,72,0.4)]' : 'bg-white/5 text-gray-400 hover:bg-white/10'}`}>⏰ Rutinas y Alarmas</button>
+                                    <button onClick={()=>setAdminTabAnth('ajustes')} className={`px-6 py-3 rounded-xl text-xs uppercase tracking-widest font-bold transition-all whitespace-nowrap ${adminTabAnth === 'ajustes' ? 'bg-rose-600 text-white shadow-[0_0_20px_rgba(225,29,72,0.4)]' : 'bg-white/5 text-gray-400 hover:bg-white/10'}`}>⚙️ Ajustes Base</button>
+                                </div>
+
                                 <div className="grid md:grid-cols-2 gap-8">
+                                    {/* COLUMNA IZQUIERDA: FORMULARIOS SEGÚN LA PESTAÑA */}
                                     <div className="space-y-6">
-                                        <form onSubmit={guardarBienvenidaAnthony} className="bg-black/20 p-5 rounded-2xl border border-white/5 flex flex-col gap-3 shadow-lg">
-                                            <h3 className="text-rose-400 font-bold text-[10px] uppercase tracking-[0.2em]">Tu carta en la Entrada principal</h3>
-                                            <textarea className="p-3 bg-black/30 border border-white/10 rounded-xl text-sm outline-none focus:border-rose-500" value={formBienvenidaAnthony} onChange={e=>setFormBienvenidaAnthony(e.target.value)} rows="3"></textarea>
-                                            <button type="submit" className="bg-rose-900/50 hover:bg-rose-800 text-rose-200 p-2 rounded-lg text-[10px] uppercase tracking-widest transition-colors">Actualizar Carta</button>
-                                        </form>
+                                        {adminTabAnth === 'publicar' && (
+                                            <>
+                                                <form onSubmit={guardarBienvenidaAnthony} className="bg-black/20 p-5 rounded-2xl border border-white/5 flex flex-col gap-3 shadow-lg">
+                                                    <h3 className="text-rose-400 font-bold text-[10px] uppercase tracking-[0.2em]">Tu carta en la Entrada principal</h3>
+                                                    <textarea required placeholder="Ej: Mi amada Flor Soyin. Eres la dueña de mis latidos..." className="p-3 bg-black/30 border border-white/10 rounded-xl text-sm outline-none focus:border-rose-500" value={formBienvenidaAnthony} onChange={e=>setFormBienvenidaAnthony(e.target.value)} rows="3"></textarea>
+                                                    <DateSelector isCustom={customCartaAnth} setIsCustom={setCustomCartaAnth} fecha={fechaCartaAnth} setFecha={setFechaCartaAnth} hora={horaCartaAnth} setHora={setHoraCartaAnth} colorTheme="rose" />
+                                                    <button type="submit" className="bg-rose-900/50 hover:bg-rose-800 text-rose-200 p-2 rounded-lg text-[10px] uppercase tracking-widest transition-colors mt-1 border border-rose-500/30">Actualizar Carta</button>
+                                                </form>
 
-                                        <form onSubmit={publicarMensajeAnthony} className="bg-black/20 p-6 rounded-2xl border border-white/5 flex flex-col gap-4 shadow-lg">
-                                            <h3 className="text-rose-400 font-bold text-[10px] uppercase tracking-[0.2em] flex items-center justify-between">
-                                                <span>Agregar Pensamiento o Diario</span>
-                                                <span className="text-[8px] text-gray-500 lowercase normal-case">(Déjalo en blanco para usar la hora exacta actual)</span>
-                                            </h3>
-                                            <select className="p-3 bg-black/30 border border-white/10 rounded-xl text-rose-300 outline-none text-sm focus:border-rose-500 cursor-pointer" value={tipoMensaje} onChange={e=>setTipoMensaje(e.target.value)}>
-                                                <option value="latidos">Latido (Mensaje Corto)</option>
-                                                <option value="diario">Entrada del Diario (Historia Larga)</option>
-                                            </select>
-                                            <textarea required placeholder="Escribe aquí tu pensamiento..." className="p-4 bg-black/30 border border-white/10 rounded-xl h-24 outline-none focus:border-rose-500 text-sm" value={nuevoTexto} onChange={e => setNuevoTexto(e.target.value)}></textarea>
-                                            <div className="grid grid-cols-2 gap-4">
-                                                <input type="date" className="p-3 bg-black/30 border border-white/10 rounded-xl outline-none [color-scheme:dark] text-sm focus:border-rose-500" value={nuevaFecha} onChange={e => setNuevaFecha(e.target.value)} />
-                                                <input type="time" className="p-3 bg-black/30 border border-white/10 rounded-xl outline-none [color-scheme:dark] text-sm focus:border-rose-500" value={nuevaHora} onChange={e => setNuevaHora(e.target.value)} />
-                                            </div>
-                                            <button type="submit" className="bg-rose-600 hover:bg-rose-700 text-white p-3 rounded-xl text-xs uppercase tracking-widest font-bold transition-colors shadow-[0_0_15px_rgba(225,29,72,0.3)] mt-2">Publicar Mágicamente</button>
-                                        </form>
+                                                <form onSubmit={publicarMensajeAnthony} className="bg-black/20 p-6 rounded-2xl border border-white/5 flex flex-col gap-4 shadow-lg">
+                                                    <h3 className="text-rose-400 font-bold text-[10px] uppercase tracking-[0.2em] flex items-center justify-between">
+                                                        <span>Agregar Pensamiento o Diario</span>
+                                                    </h3>
+                                                    <select className="p-3 bg-black/30 border border-white/10 rounded-xl text-rose-300 outline-none text-sm focus:border-rose-500 cursor-pointer" value={tipoMensaje} onChange={e=>setTipoMensaje(e.target.value)}>
+                                                        <option value="latidos">Latido (Mensaje Corto)</option>
+                                                        <option value="diario">Entrada del Diario (Historia Larga)</option>
+                                                    </select>
+                                                    <textarea required placeholder="Escribe aquí tu pensamiento..." className="p-4 bg-black/30 border border-white/10 rounded-xl h-24 outline-none focus:border-rose-500 text-sm" value={nuevoTexto} onChange={e => setNuevoTexto(e.target.value)}></textarea>
+                                                    <DateSelector isCustom={customDateAnth} setIsCustom={setCustomDateAnth} fecha={nuevaFecha} setFecha={setNuevaFecha} hora={nuevaHora} setHora={setNuevaHora} colorTheme="rose" />
+                                                    <button type="submit" className="bg-rose-600 hover:bg-rose-700 text-white p-3 rounded-xl text-xs uppercase tracking-widest font-bold transition-colors shadow-[0_0_15px_rgba(225,29,72,0.3)] mt-2">Publicar Mágicamente</button>
+                                                </form>
+                                            </>
+                                        )}
 
-                                        <form onSubmit={async (e) => { e.preventDefault(); await db.collection("configuracion").doc("general").set({musicUrl: nuevaMusica, fechaInicioRelacion: nuevaFechaRelacion}, {merge:true}); alert("Ajustes guardados"); }} className="bg-black/20 p-5 rounded-2xl border border-white/5 flex flex-col gap-3 shadow-lg">
-                                            <h3 className="text-blue-400 font-bold text-[10px] uppercase tracking-[0.2em]">Ajustes de Sistema</h3>
-                                            <label className="text-[10px] text-gray-400 uppercase tracking-widest mt-1">Enlace de Música:</label>
-                                            <input required type="url" placeholder="Link de Dropbox" className="p-2 px-3 bg-black/30 border border-white/10 rounded-lg outline-none text-xs focus:border-blue-500" value={nuevaMusica} onChange={e => setNuevaMusica(e.target.value)} />
-                                            <label className="text-[10px] text-gray-400 uppercase tracking-widest mt-2">Fecha Inicio Relación (Para la Luna):</label>
-                                            <input required type="date" className="p-2 px-3 bg-black/30 border border-white/10 rounded-lg outline-none text-xs [color-scheme:dark] focus:border-blue-500" value={nuevaFechaRelacion} onChange={e => setNuevaFechaRelacion(e.target.value)} />
-                                            <button type="submit" className="bg-blue-600/50 hover:bg-blue-700 text-white p-2 rounded-lg text-[10px] uppercase tracking-widest transition-colors mt-2">Guardar Ajustes</button>
-                                        </form>
+                                        {adminTabAnth === 'calendario' && (
+                                            <form onSubmit={(e)=>agregarEvento(e, 'anthony')} className="bg-black/20 p-6 rounded-2xl border border-yellow-500/20 flex flex-col gap-4 shadow-lg">
+                                                <h3 className="text-yellow-400 font-bold text-[10px] uppercase tracking-[0.2em] flex items-center gap-2"><CalendarIcon size={14}/> Agendar Fecha Importante</h3>
+                                                <input type="text" required placeholder="Título del evento (Ej. Nuestro Aniversario)" className="p-3 bg-black/30 border border-white/10 rounded-xl outline-none text-sm focus:border-yellow-500" value={nuevoEventoTitulo} onChange={e=>setNuevoEventoTitulo(e.target.value)} />
+                                                <input type="date" required className="p-3 bg-black/30 border border-white/10 rounded-xl outline-none [color-scheme:dark] text-sm focus:border-yellow-500 text-white" value={nuevoEventoFecha} onChange={e=>setNuevoEventoFecha(e.target.value)} />
+                                                <textarea placeholder="Una nota especial para este día... (Opcional)" className="p-3 bg-black/30 border border-white/10 rounded-xl h-20 outline-none focus:border-yellow-500 text-sm" value={nuevoEventoNota} onChange={e=>setNuevoEventoNota(e.target.value)}></textarea>
+                                                <button type="submit" className="bg-yellow-600 hover:bg-yellow-700 text-black p-3 rounded-xl text-xs uppercase tracking-widest font-bold transition-colors shadow-[0_0_15px_rgba(202,138,4,0.3)] mt-2">Guardar en Calendario</button>
+                                            </form>
+                                        )}
+
+                                        {adminTabAnth === 'rutinas' && (
+                                            <form onSubmit={(e)=>agregarRutina(e, 'anthony')} className="bg-black/20 p-6 rounded-2xl border border-blue-500/20 flex flex-col gap-4 shadow-lg">
+                                                <h3 className="text-blue-400 font-bold text-[10px] uppercase tracking-[0.2em] flex items-center gap-2"><BellIcon size={14}/> Programar Nueva Rutina</h3>
+                                                <p className="text-[10px] text-gray-400 mb-2">Las rutinas sonarán automáticamente (si tienen la página abierta) a la hora especificada todos los días.</p>
+                                                <input type="text" required placeholder="Nombre de la rutina (Ej. Hora de Almorzar)" className="p-3 bg-black/30 border border-white/10 rounded-xl outline-none text-sm focus:border-blue-500" value={nuevaRutinaTitulo} onChange={e=>setNuevaRutinaTitulo(e.target.value)} />
+                                                <input type="time" required className="p-3 bg-black/30 border border-white/10 rounded-xl outline-none [color-scheme:dark] text-sm focus:border-blue-500 text-white" value={nuevaRutinaHora} onChange={e=>setNuevaRutinaHora(e.target.value)} />
+                                                <button type="submit" className="bg-blue-600 hover:bg-blue-700 text-white p-3 rounded-xl text-xs uppercase tracking-widest font-bold transition-colors shadow-[0_0_15px_rgba(37,99,235,0.3)] mt-2">Activar Rutina</button>
+                                            </form>
+                                        )}
+
+                                        {adminTabAnth === 'ajustes' && (
+                                            <form onSubmit={async (e) => { e.preventDefault(); await db.collection("configuracion").doc("general").set({musicUrl: nuevaMusica, alarmUrl: nuevaAlarmaLink, fechaInicioRelacion: nuevaFechaRelacion}, {merge:true}); alert("Ajustes guardados globalmente"); }} className="bg-black/20 p-6 rounded-2xl border border-white/5 flex flex-col gap-4 shadow-lg">
+                                                <h3 className="text-gray-300 font-bold text-[10px] uppercase tracking-[0.2em]">Ajustes de Sistema Globales</h3>
+                                                
+                                                <label className="text-[10px] text-gray-400 uppercase tracking-widest mt-2">Música de Fondo (Enlace):</label>
+                                                <input required type="url" placeholder="Link de Dropbox" className="p-3 bg-black/30 border border-white/10 rounded-xl outline-none text-xs focus:border-white/50" value={nuevaMusica} onChange={e => setNuevaMusica(e.target.value)} />
+                                                
+                                                <label className="text-[10px] text-gray-400 uppercase tracking-widest mt-2">Sonido de Alarma (Enlace mp3):</label>
+                                                <input type="url" placeholder="Link de alarma (Opcional)" className="p-3 bg-black/30 border border-white/10 rounded-xl outline-none text-xs focus:border-white/50" value={nuevaAlarmaLink} onChange={e => setNuevaAlarmaLink(e.target.value)} />
+                                                
+                                                <label className="text-[10px] text-gray-400 uppercase tracking-widest mt-2">Fecha Inicio Relación (Para la Luna):</label>
+                                                <input required type="date" className="p-3 bg-black/30 border border-white/10 rounded-xl outline-none text-xs [color-scheme:dark] focus:border-white/50" value={nuevaFechaRelacion} onChange={e => setNuevaFechaRelacion(e.target.value)} />
+                                                
+                                                <button type="submit" className="bg-white/20 hover:bg-white/30 text-white p-3 rounded-xl text-xs uppercase tracking-widest transition-colors mt-4">Guardar Ajustes</button>
+                                            </form>
+                                        )}
                                     </div>
 
-                                    <div className="bg-black/20 p-6 rounded-2xl border border-white/5 h-[800px] overflow-y-auto shadow-lg">
-                                        <h3 className="text-rose-400 font-bold text-xs mb-4 uppercase tracking-widest flex items-center gap-2"><ListIcon size={16}/> Tu Historial Total</h3>
+                                    {/* COLUMNA DERECHA: HISTORIALES */}
+                                    <div className="bg-black/20 p-6 rounded-2xl border border-white/5 h-[800px] overflow-y-auto shadow-lg relative">
                                         
-                                        <p className="text-gray-400 text-[10px] uppercase tracking-widest mb-3 border-b border-white/10 pb-2 mt-4 text-center">Tus Entradas en el Diario</p>
-                                        {diario.filter(d => d.autor !== 'soyin').map(d => (
-                                            <div key={d.id} className="p-4 bg-white/5 mb-3 rounded-xl border border-white/10 flex justify-between items-center group hover:bg-white/10 transition-colors">
-                                                <div className="truncate w-3/4 text-sm text-rose-100">{d.texto}</div>
-                                                <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity bg-black/50 p-1 rounded-lg">
-                                                    <button onClick={()=>editarDocumento('diario', d.id, d.texto)} className="text-blue-400 hover:text-blue-300 p-1"><EditIcon size={16}/></button>
-                                                    <button onClick={()=>eliminarDocumento('diario', d.id)} className="text-red-500 hover:text-red-400 p-1"><TrashIcon size={16}/></button>
-                                                </div>
-                                            </div>
-                                        ))}
-
-                                        <p className="text-gray-400 text-[10px] uppercase tracking-widest mt-8 mb-3 border-b border-white/10 pb-2 text-center">Todos Tus Latidos Cortos</p>
-                                        {latidos.map(l => (
-                                            <div key={l.id} className="p-4 bg-white/5 mb-3 rounded-xl border border-white/10 flex flex-col group hover:bg-white/10 transition-colors">
-                                                <div className="flex justify-between items-center w-full">
-                                                    <div className="truncate w-3/4 text-sm text-rose-100">{l.texto}</div>
-                                                    <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity bg-black/50 p-1 rounded-lg">
-                                                        <button onClick={()=>editarDocumento('latidos', l.id, l.texto)} className="text-blue-400 hover:text-blue-300 p-1"><EditIcon size={16}/></button>
-                                                        <button onClick={()=>eliminarDocumento('latidos', l.id)} className="text-red-500 hover:text-red-400 p-1"><TrashIcon size={16}/></button>
+                                        {adminTabAnth === 'publicar' && (
+                                            <div className="animate-in">
+                                                <h3 className="text-rose-400 font-bold text-xs mb-4 uppercase tracking-widest flex items-center gap-2"><ListIcon size={16}/> Tus Memorias Escritas</h3>
+                                                
+                                                <p className="text-gray-400 text-[10px] uppercase tracking-widest mb-3 border-b border-white/10 pb-2 mt-4 text-center">Tus Entradas en el Diario</p>
+                                                {diarioOrdenado.filter(d => d.autor !== 'soyin').map(d => (
+                                                    <div key={d.id} className="p-4 bg-white/5 mb-3 rounded-xl border border-white/10 flex flex-col group hover:bg-white/10 transition-colors">
+                                                        <div className="flex justify-between items-center w-full">
+                                                            <div className="truncate w-3/4 text-sm text-rose-100">{d.texto}</div>
+                                                            <div className="flex gap-2 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity bg-black/50 p-1 rounded-lg">
+                                                                <button onClick={()=>abrirEditor('diario', d.id, d.texto, d.fecha, d.hora)} className="text-blue-400 hover:text-blue-300 p-2"><EditIcon size={16}/></button>
+                                                                <button onClick={()=>eliminarDocumento('diario', d.id)} className="text-red-500 hover:text-red-400 p-2"><TrashIcon size={16}/></button>
+                                                            </div>
+                                                        </div>
+                                                        <span className="text-[9px] text-gray-500 mt-2 tracking-widest uppercase">{formatearFechaHora(d.fecha, d.hora)}</span>
                                                     </div>
-                                                </div>
-                                                <span className="text-[9px] text-gray-500 mt-2 tracking-widest uppercase">{formatearFechaHora(l.fecha, l.hora)}</span>
+                                                ))}
+
+                                                <p className="text-gray-400 text-[10px] uppercase tracking-widest mt-8 mb-3 border-b border-white/10 pb-2 text-center">Todos Tus Latidos Cortos</p>
+                                                {latidosOrdenados.map(l => (
+                                                    <div key={l.id} className="p-4 bg-white/5 mb-3 rounded-xl border border-white/10 flex flex-col group hover:bg-white/10 transition-colors">
+                                                        <div className="flex justify-between items-center w-full">
+                                                            <div className="truncate w-3/4 text-sm text-rose-100">{l.texto}</div>
+                                                            <div className="flex gap-2 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity bg-black/50 p-1 rounded-lg">
+                                                                <button onClick={()=>abrirEditor('latidos', l.id, l.texto, l.fecha, l.hora)} className="text-blue-400 hover:text-blue-300 p-2"><EditIcon size={16}/></button>
+                                                                <button onClick={()=>eliminarDocumento('latidos', l.id)} className="text-red-500 hover:text-red-400 p-2"><TrashIcon size={16}/></button>
+                                                            </div>
+                                                        </div>
+                                                        <span className="text-[9px] text-gray-500 mt-2 tracking-widest uppercase">{formatearFechaHora(l.fecha, l.hora)}</span>
+                                                    </div>
+                                                ))}
                                             </div>
-                                        ))}
+                                        )}
+
+                                        {adminTabAnth === 'calendario' && (
+                                            <div className="animate-in">
+                                                <h3 className="text-yellow-400 font-bold text-xs mb-4 uppercase tracking-widest flex items-center gap-2"><CalendarIcon size={16}/> Eventos del Calendario</h3>
+                                                {eventosOrdenados.length === 0 && <p className="text-gray-500 italic text-sm text-center mt-10">No hay fechas importantes anotadas.</p>}
+                                                {eventosOrdenados.map(ev => (
+                                                    <div key={ev.id} className={`p-5 mb-3 rounded-xl border ${ev.isDefault ? 'bg-fuchsia-900/10 border-fuchsia-500/30' : 'bg-black/30 border-yellow-500/20'} flex flex-col group relative`}>
+                                                        {!ev.isDefault && <button onClick={()=>eliminarDocumento('calendario', ev.id, "¿Borrar este evento?")} className="absolute top-4 right-4 text-gray-500 hover:text-red-500 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity p-2"><TrashIcon size={16}/></button>}
+                                                        <h4 className={`font-name text-2xl mb-1 ${ev.isDefault ? 'text-fuchsia-300' : 'text-yellow-300'}`}>{ev.titulo}</h4>
+                                                        
+                                                        <div className="flex flex-col gap-1 mb-3">
+                                                            <p className={`text-[10px] uppercase tracking-widest font-bold ${ev.isDefault ? 'text-fuchsia-500/70' : 'text-yellow-500/70'}`}>{formatearFechaSimple(ev.fecha)}</p>
+                                                            {!ev.isPast && ev.timeLeft ? (
+                                                                <span className={`text-[9px] font-bold tracking-widest uppercase inline-block w-fit px-2 py-1 rounded-md ${ev.isDefault ? 'bg-fuchsia-900/30 text-fuchsia-400' : 'bg-green-900/30 text-green-400'}`}>
+                                                                    Faltan {ev.timeLeft.days}d {ev.timeLeft.hours}h {ev.timeLeft.mins}m
+                                                                </span>
+                                                            ) : (
+                                                                <span className="text-[9px] font-bold tracking-widest uppercase inline-block w-fit px-2 py-1 rounded-md bg-white/5 text-gray-500">
+                                                                    Ya pasó
+                                                                </span>
+                                                            )}
+                                                        </div>
+
+                                                        {ev.nota && <p className="text-sm text-gray-300 italic border-t border-white/5 pt-3">"{ev.nota}"</p>}
+                                                        <span className="text-[8px] text-gray-600 mt-3 uppercase">{ev.isDefault ? 'Evento Fijo del Sistema' : `Por ${ev.autor}`}</span>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
+
+                                        {adminTabAnth === 'rutinas' && (
+                                            <div className="animate-in">
+                                                <h3 className="text-blue-400 font-bold text-xs mb-4 uppercase tracking-widest flex items-center gap-2"><BellIcon size={16}/> Todas las Rutinas</h3>
+                                                {rutinasOrdenadas.length === 0 && <p className="text-gray-500 italic text-sm text-center mt-10">No hay rutinas programadas.</p>}
+                                                {rutinasOrdenadas.map(rut => (
+                                                    <div key={rut.id} className={`p-5 mb-3 rounded-xl border flex items-center justify-between transition-colors ${rut.activa ? 'bg-blue-900/20 border-blue-500/30' : 'bg-white/5 border-white/10 opacity-60'}`}>
+                                                        <div>
+                                                            <h4 className={`font-name text-2xl mb-1 ${rut.activa ? 'text-blue-300' : 'text-gray-400'}`}>{rut.titulo}</h4>
+                                                            <p className="text-xs tracking-widest font-timer text-gray-300 bg-black/40 inline-block px-3 py-1 rounded-full">{rut.hora}</p>
+                                                            <p className="text-[8px] text-gray-500 mt-2 uppercase tracking-widest">Creado por {rut.autor}</p>
+                                                        </div>
+                                                        <div className="flex flex-col gap-3 items-end">
+                                                            <button onClick={()=>toggleRutina(rut.id, rut.activa)} className={`px-4 py-2 rounded-full text-[9px] uppercase tracking-widest font-bold shadow-lg ${rut.activa ? 'bg-blue-600 text-white' : 'bg-gray-600 text-gray-300'}`}>
+                                                                {rut.activa ? 'Activa' : 'Pausada'}
+                                                            </button>
+                                                            <button onClick={()=>eliminarDocumento('rutinas', rut.id, "¿Borrar esta rutina?")} className="text-gray-500 hover:text-red-500 p-2"><TrashIcon size={14}/></button>
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
+
+                                        {adminTabAnth === 'ajustes' && (
+                                            <div className="animate-in text-center flex flex-col items-center justify-center h-full opacity-30">
+                                                <h3 className="text-gray-400 font-bold text-xl uppercase tracking-widest mb-4">Ajustes Base</h3>
+                                                <p className="text-sm">Configuraciones aplicadas para el Rincón.</p>
+                                            </div>
+                                        )}
                                     </div>
                                 </div>
                             </div>
@@ -579,8 +946,8 @@
                 if (isSoyin) {
                     return (
                         <div className="min-h-screen p-4 md:p-8 font-body bg-[#020205] relative z-50">
-                            <div className="max-w-5xl mx-auto glass-panel p-6 md:p-10 rounded-3xl animate-in relative border border-purple-500/30">
-                                <div className="flex flex-wrap justify-between items-center mb-8 gap-4 border-b border-purple-500/20 pb-6">
+                            <div className="max-w-6xl mx-auto glass-panel p-6 md:p-10 rounded-3xl animate-in relative border border-purple-500/30">
+                                <div className="flex flex-wrap justify-between items-center mb-6 gap-4 border-b border-purple-500/20 pb-6">
                                     <div>
                                         <h2 className="font-name text-4xl text-purple-300">Hola, mi amor</h2>
                                         <p className="text-purple-200/60 text-[10px] tracking-widest uppercase mt-1">Tu espacio para dejar huella en nuestro mundo</p>
@@ -599,68 +966,164 @@
                                     </div>
                                 </div>
                                 
+                                {/* PERFIL PERSONAL SOYIN */}
+                                <div className="bg-gradient-to-r from-purple-900/20 to-black/20 p-5 rounded-2xl border border-purple-500/30 flex items-center gap-5 shadow-[0_0_30px_rgba(168,85,247,0.1)] mb-8">
+                                    <div className="w-16 h-16 rounded-full bg-purple-600 flex items-center justify-center text-white shadow-lg border-2 border-purple-400/50"><UserIcon size={32}/></div>
+                                    <div>
+                                        <h3 className="text-purple-100 font-bold font-name text-3xl mb-1">{datosPersonales.soyin.nombre}</h3>
+                                        <p className="text-[10px] text-purple-300/60 tracking-widest uppercase font-bold flex items-center gap-2">
+                                            17 de Noviembre, 2006 <span className="w-1.5 h-1.5 rounded-full bg-purple-500"></span> {calcularEdad(datosPersonales.soyin.fechaNac)} Años de edad
+                                        </p>
+                                    </div>
+                                </div>
+
+                                {/* PESTAÑAS DE NAVEGACIÓN INTERNA */}
+                                <div className="flex gap-2 mb-6 border-b border-purple-500/20 pb-4 overflow-x-auto">
+                                    <button onClick={()=>setAdminTabSoyin('publicar')} className={`px-6 py-3 rounded-xl text-xs uppercase tracking-widest font-bold transition-all whitespace-nowrap ${adminTabSoyin === 'publicar' ? 'bg-purple-600 text-white shadow-[0_0_20px_rgba(168,85,247,0.4)]' : 'bg-purple-900/20 text-purple-300/50 hover:bg-purple-900/40'}`}>✍️ Publicaciones</button>
+                                    <button onClick={()=>setAdminTabSoyin('calendario')} className={`px-6 py-3 rounded-xl text-xs uppercase tracking-widest font-bold transition-all whitespace-nowrap ${adminTabSoyin === 'calendario' ? 'bg-purple-600 text-white shadow-[0_0_20px_rgba(168,85,247,0.4)]' : 'bg-purple-900/20 text-purple-300/50 hover:bg-purple-900/40'}`}>📅 Calendario</button>
+                                    <button onClick={()=>setAdminTabSoyin('rutinas')} className={`px-6 py-3 rounded-xl text-xs uppercase tracking-widest font-bold transition-all whitespace-nowrap ${adminTabSoyin === 'rutinas' ? 'bg-purple-600 text-white shadow-[0_0_20px_rgba(168,85,247,0.4)]' : 'bg-purple-900/20 text-purple-300/50 hover:bg-purple-900/40'}`}>⏰ Rutinas Compartidas</button>
+                                </div>
+
                                 <div className="grid md:grid-cols-2 gap-8">
+                                    {/* COLUMNA IZQUIERDA: FORMULARIOS */}
                                     <div className="space-y-6">
-                                        <form onSubmit={guardarBienvenidaSoyin} className="bg-purple-900/10 p-5 rounded-2xl border border-purple-500/20 flex flex-col gap-3 shadow-[0_0_20px_rgba(147,51,234,0.05)]">
-                                            <h3 className="text-purple-300 font-bold text-[10px] uppercase tracking-[0.2em]">Tus palabras en la Entrada principal</h3>
-                                            <textarea className="p-3 bg-black/40 border border-purple-500/30 rounded-xl text-sm outline-none text-purple-100 focus:border-purple-400" value={formBienvenidaSoyin} onChange={e=>setFormBienvenidaSoyin(e.target.value)} rows="3"></textarea>
-                                            <button type="submit" className="bg-purple-900/50 hover:bg-purple-800 text-purple-200 p-2 rounded-lg text-[10px] uppercase tracking-widest transition-colors">Actualizar Carta</button>
-                                        </form>
+                                        {adminTabSoyin === 'publicar' && (
+                                            <>
+                                                <form onSubmit={guardarBienvenidaSoyin} className="bg-purple-900/10 p-5 rounded-2xl border border-purple-500/20 flex flex-col gap-3 shadow-[0_0_20px_rgba(147,51,234,0.05)]">
+                                                    <h3 className="text-purple-300 font-bold text-[10px] uppercase tracking-[0.2em]">Tus palabras en la Entrada principal</h3>
+                                                    <textarea required placeholder="Ej: Mi príncipe Anthony, cada segundo a tu lado es magia..." className="p-3 bg-black/40 border border-purple-500/30 rounded-xl text-sm outline-none text-purple-100 focus:border-purple-400" value={formBienvenidaSoyin} onChange={e=>setFormBienvenidaSoyin(e.target.value)} rows="3"></textarea>
+                                                    <DateSelector isCustom={customCartaSoyin} setIsCustom={setCustomCartaSoyin} fecha={fechaCartaSoyin} setFecha={setFechaCartaSoyin} hora={horaCartaSoyin} setHora={setHoraCartaSoyin} colorTheme="purple" />
+                                                    <button type="submit" className="bg-purple-900/50 hover:bg-purple-800 text-purple-200 p-2 rounded-lg text-[10px] uppercase tracking-widest transition-colors mt-1 border border-purple-500/30">Actualizar Carta</button>
+                                                </form>
 
-                                        <form onSubmit={publicarDiarioSoyin} className="bg-purple-900/10 p-6 rounded-2xl border border-purple-500/20 flex flex-col gap-4 shadow-[0_0_20px_rgba(147,51,234,0.05)]">
-                                            <h3 className="text-purple-300 font-bold text-[10px] uppercase tracking-[0.2em] flex justify-between">
-                                                <span>Escribir en nuestro Diario</span>
-                                                <span className="text-[8px] text-gray-500 normal-case">(Vacío = Exactamente ahora)</span>
-                                            </h3>
-                                            <textarea required placeholder="Cuenta una historia, un recuerdo, lo que sientes..." className="p-4 bg-black/40 border border-purple-500/30 rounded-xl h-20 outline-none focus:border-purple-400 text-purple-50 text-sm" value={nuevoDiarioSoyin} onChange={e => setNuevoDiarioSoyin(e.target.value)}></textarea>
-                                            <div className="grid grid-cols-2 gap-4">
-                                                <input type="date" className="p-3 bg-black/40 border border-purple-500/30 rounded-xl outline-none [color-scheme:dark] text-sm text-purple-100 focus:border-purple-400" value={fechaDiarioSoyin} onChange={e => setFechaDiarioSoyin(e.target.value)} />
-                                                <input type="time" className="p-3 bg-black/40 border border-purple-500/30 rounded-xl outline-none [color-scheme:dark] text-sm text-purple-100 focus:border-purple-400" value={horaDiarioSoyin} onChange={e => setHoraDiarioSoyin(e.target.value)} />
-                                            </div>
-                                            <button type="submit" className="bg-purple-600 hover:bg-purple-700 text-white p-3 rounded-xl text-xs uppercase tracking-widest font-bold shadow-[0_0_15px_rgba(147,51,234,0.3)] transition-colors mt-2">Guardar Mágicamente</button>
-                                        </form>
+                                                <form onSubmit={publicarDiarioSoyin} className="bg-purple-900/10 p-6 rounded-2xl border border-purple-500/20 flex flex-col gap-4 shadow-[0_0_20px_rgba(147,51,234,0.05)]">
+                                                    <h3 className="text-purple-300 font-bold text-[10px] uppercase tracking-[0.2em] flex justify-between">
+                                                        <span>Escribir en nuestro Diario</span>
+                                                    </h3>
+                                                    <textarea required placeholder="Cuenta una historia, un recuerdo, lo que sientes..." className="p-4 bg-black/40 border border-purple-500/30 rounded-xl h-20 outline-none focus:border-purple-400 text-purple-50 text-sm" value={nuevoDiarioSoyin} onChange={e => setNuevoDiarioSoyin(e.target.value)}></textarea>
+                                                    <DateSelector isCustom={customDateSoyinDiario} setIsCustom={setCustomDateSoyinDiario} fecha={fechaDiarioSoyin} setFecha={setFechaDiarioSoyin} hora={horaDiarioSoyin} setHora={setHoraDiarioSoyin} colorTheme="purple" />
+                                                    <button type="submit" className="bg-purple-600 hover:bg-purple-700 text-white p-3 rounded-xl text-xs uppercase tracking-widest font-bold shadow-[0_0_15px_rgba(147,51,234,0.3)] transition-colors mt-2">Guardar Mágicamente</button>
+                                                </form>
 
-                                        <form onSubmit={publicarMensajeCortoSoyin} className="flex flex-col gap-4 mt-8">
-                                            <h3 className="text-purple-300 font-bold text-[10px] uppercase tracking-[0.2em] flex justify-between items-center">
-                                                <span className="flex items-center gap-2"><SparklesIcon size={14}/> Un latido corto para él</span>
-                                                <span className="text-[8px] text-gray-500 normal-case">(Vacío = Exactamente ahora)</span>
-                                            </h3>
-                                            <textarea required placeholder="De ti, para él..." className="p-4 bg-purple-900/20 border border-purple-500/40 rounded-xl h-24 outline-none focus:border-purple-400 text-purple-50 text-sm shadow-[inset_0_0_20px_rgba(147,51,234,0.1)]" value={nuevoTextoSoyin} onChange={e => setNuevoTextoSoyin(e.target.value)}></textarea>
-                                            <div className="grid grid-cols-2 gap-4">
-                                                <input type="date" className="p-3 bg-black/40 border border-purple-500/30 rounded-xl outline-none [color-scheme:dark] text-sm text-purple-100 focus:border-purple-400" value={fechaMensajeSoyin} onChange={e => setFechaMensajeSoyin(e.target.value)} />
-                                                <input type="time" className="p-3 bg-black/40 border border-purple-500/30 rounded-xl outline-none [color-scheme:dark] text-sm text-purple-100 focus:border-purple-400" value={horaMensajeSoyin} onChange={e => setHoraMensajeSoyin(e.target.value)} />
-                                            </div>
-                                            <button type="submit" className="bg-fuchsia-600 hover:bg-fuchsia-700 text-white p-3 rounded-xl text-xs uppercase tracking-[0.2em] font-bold shadow-[0_0_20px_rgba(192,38,211,0.5)] transition-colors transform hover:scale-[1.02]">Dejar Latido</button>
-                                        </form>
+                                                <form onSubmit={publicarMensajeCortoSoyin} className="flex flex-col gap-4 mt-8 bg-purple-900/10 p-6 rounded-2xl border border-purple-500/20">
+                                                    <h3 className="text-purple-300 font-bold text-[10px] uppercase tracking-[0.2em] flex justify-between items-center">
+                                                        <span className="flex items-center gap-2"><SparklesIcon size={14}/> Un latido corto para él</span>
+                                                    </h3>
+                                                    <textarea required placeholder="De ti, para él..." className="p-4 bg-black/40 border border-purple-500/40 rounded-xl h-24 outline-none focus:border-purple-400 text-purple-50 text-sm shadow-[inset_0_0_20px_rgba(147,51,234,0.1)]" value={nuevoTextoSoyin} onChange={e => setNuevoTextoSoyin(e.target.value)}></textarea>
+                                                    <DateSelector isCustom={customDateSoyinLatido} setIsCustom={setCustomDateSoyinLatido} fecha={fechaMensajeSoyin} setFecha={setFechaMensajeSoyin} hora={horaMensajeSoyin} setHora={setHoraMensajeSoyin} colorTheme="purple" />
+                                                    <button type="submit" className="bg-fuchsia-600 hover:bg-fuchsia-700 text-white p-3 rounded-xl text-xs uppercase tracking-[0.2em] font-bold shadow-[0_0_20px_rgba(192,38,211,0.5)] transition-colors transform hover:scale-[1.02] mt-2">Dejar Latido</button>
+                                                </form>
+                                            </>
+                                        )}
+
+                                        {adminTabSoyin === 'calendario' && (
+                                            <form onSubmit={(e)=>agregarEvento(e, 'soyin')} className="bg-black/20 p-6 rounded-2xl border border-yellow-500/20 flex flex-col gap-4 shadow-lg">
+                                                <h3 className="text-yellow-400 font-bold text-[10px] uppercase tracking-[0.2em] flex items-center gap-2"><CalendarIcon size={14}/> Agendar Fecha Importante</h3>
+                                                <input type="text" required placeholder="Título del evento (Ej. Nuestro Aniversario)" className="p-3 bg-black/30 border border-purple-500/30 rounded-xl outline-none text-sm focus:border-yellow-500 text-purple-50" value={nuevoEventoTitulo} onChange={e=>setNuevoEventoTitulo(e.target.value)} />
+                                                <input type="date" required className="p-3 bg-black/30 border border-purple-500/30 rounded-xl outline-none [color-scheme:dark] text-sm focus:border-yellow-500 text-purple-50" value={nuevoEventoFecha} onChange={e=>setNuevoEventoFecha(e.target.value)} />
+                                                <textarea placeholder="Una nota especial para este día... (Opcional)" className="p-3 bg-black/30 border border-purple-500/30 rounded-xl h-20 outline-none focus:border-yellow-500 text-sm text-purple-50" value={nuevoEventoNota} onChange={e=>setNuevoEventoNota(e.target.value)}></textarea>
+                                                <button type="submit" className="bg-yellow-600 hover:bg-yellow-700 text-black p-3 rounded-xl text-xs uppercase tracking-widest font-bold transition-colors shadow-[0_0_15px_rgba(202,138,4,0.3)] mt-2">Guardar en Calendario</button>
+                                            </form>
+                                        )}
+
+                                        {adminTabSoyin === 'rutinas' && (
+                                            <form onSubmit={(e)=>agregarRutina(e, 'soyin')} className="bg-black/20 p-6 rounded-2xl border border-blue-500/20 flex flex-col gap-4 shadow-lg">
+                                                <h3 className="text-blue-400 font-bold text-[10px] uppercase tracking-[0.2em] flex items-center gap-2"><BellIcon size={14}/> Programar Nueva Rutina</h3>
+                                                <p className="text-[10px] text-purple-300/50 mb-2">Añade rutinas para que suenen automáticamente todos los días.</p>
+                                                <input type="text" required placeholder="Nombre de la rutina" className="p-3 bg-black/30 border border-purple-500/30 rounded-xl outline-none text-sm focus:border-blue-500 text-purple-50" value={nuevaRutinaTitulo} onChange={e=>setNuevaRutinaTitulo(e.target.value)} />
+                                                <input type="time" required className="p-3 bg-black/30 border border-purple-500/30 rounded-xl outline-none [color-scheme:dark] text-sm focus:border-blue-500 text-purple-50" value={nuevaRutinaHora} onChange={e=>setNuevaRutinaHora(e.target.value)} />
+                                                <button type="submit" className="bg-blue-600 hover:bg-blue-700 text-white p-3 rounded-xl text-xs uppercase tracking-widest font-bold transition-colors shadow-[0_0_15px_rgba(37,99,235,0.3)] mt-2">Activar Rutina</button>
+                                            </form>
+                                        )}
                                     </div>
 
+                                    {/* COLUMNA DERECHA: HISTORIALES */}
                                     <div className="bg-purple-900/5 p-6 rounded-2xl border border-purple-500/20 h-[800px] overflow-y-auto shadow-[0_0_20px_rgba(147,51,234,0.05)]">
-                                        <h3 className="text-purple-300 font-bold text-xs mb-4 uppercase tracking-widest flex items-center gap-2"><ListIcon size={16}/> Tu Historial Total</h3>
                                         
-                                        <p className="text-purple-400/60 text-[9px] uppercase tracking-widest mb-3 mt-4 text-center border-b border-purple-500/20 pb-2">En el Diario Compartido:</p>
-                                        {diario.filter(d => d.autor === 'soyin').map(d => (
-                                            <div key={d.id} className="p-4 bg-purple-900/20 mb-3 rounded-xl border border-purple-500/20 flex justify-between items-center group hover:bg-purple-900/40 transition-colors">
-                                                <div className="truncate w-3/4 text-sm text-purple-100">{d.texto}</div>
-                                                <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity bg-black/50 p-1 rounded-lg">
-                                                    <button onClick={()=>editarDocumento('diario', d.id, d.texto)} className="text-blue-400 hover:text-blue-300 p-1"><EditIcon size={16}/></button>
-                                                    <button onClick={()=>eliminarDocumento('diario', d.id)} className="text-red-400 hover:text-red-300 p-1"><TrashIcon size={16}/></button>
-                                                </div>
-                                            </div>
-                                        ))}
-
-                                        <p className="text-purple-400/60 text-[9px] uppercase tracking-widest mb-3 mt-8 text-center border-b border-purple-500/20 pb-2">Tus Latidos Cortos:</p>
-                                        {mensajesSoyin.map(msg => (
-                                            <div key={msg.id} className="p-4 bg-purple-900/20 mb-3 rounded-xl border border-purple-500/20 flex flex-col group hover:bg-purple-900/40 transition-colors">
-                                                <div className="flex justify-between items-center w-full">
-                                                    <div className="truncate w-3/4 text-sm text-purple-100">{msg.texto}</div>
-                                                    <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity bg-black/50 p-1 rounded-lg">
-                                                        <button onClick={()=>editarDocumento('mensajes_soyin', msg.id, msg.texto)} className="text-blue-400 hover:text-blue-300 p-1"><EditIcon size={16}/></button>
-                                                        <button onClick={()=>eliminarDocumento('mensajes_soyin', msg.id)} className="text-red-400 hover:text-red-300 p-1"><TrashIcon size={16}/></button>
+                                        {adminTabSoyin === 'publicar' && (
+                                            <div className="animate-in">
+                                                <h3 className="text-purple-300 font-bold text-xs mb-4 uppercase tracking-widest flex items-center gap-2"><ListIcon size={16}/> Tus Memorias Escritas</h3>
+                                                
+                                                <p className="text-purple-400/60 text-[9px] uppercase tracking-widest mb-3 mt-4 text-center border-b border-purple-500/20 pb-2">En el Diario Compartido:</p>
+                                                {diarioOrdenado.filter(d => d.autor === 'soyin').map(d => (
+                                                    <div key={d.id} className="p-4 bg-purple-900/20 mb-3 rounded-xl border border-purple-500/20 flex flex-col group hover:bg-purple-900/40 transition-colors">
+                                                        <div className="flex justify-between items-center w-full">
+                                                            <div className="truncate w-3/4 text-sm text-purple-100">{d.texto}</div>
+                                                            <div className="flex gap-2 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity bg-black/50 p-1 rounded-lg">
+                                                                <button onClick={()=>abrirEditor('diario', d.id, d.texto, d.fecha, d.hora)} className="text-blue-400 hover:text-blue-300 p-2"><EditIcon size={16}/></button>
+                                                                <button onClick={()=>eliminarDocumento('diario', d.id)} className="text-red-400 hover:text-red-300 p-2"><TrashIcon size={16}/></button>
+                                                            </div>
+                                                        </div>
+                                                        <span className="text-[9px] text-purple-300/60 mt-2 tracking-widest uppercase">{formatearFechaHora(d.fecha, d.hora)}</span>
                                                     </div>
-                                                </div>
-                                                <span className="text-[8px] text-purple-300/50 mt-2 tracking-widest uppercase">{formatearFechaHora(msg.fecha, msg.hora)}</span>
+                                                ))}
+
+                                                <p className="text-purple-400/60 text-[9px] uppercase tracking-widest mb-3 mt-8 text-center border-b border-purple-500/20 pb-2">Tus Latidos Cortos:</p>
+                                                {mensajesSoyinOrdenados.map(msg => (
+                                                    <div key={msg.id} className="p-4 bg-purple-900/20 mb-3 rounded-xl border border-purple-500/20 flex flex-col group hover:bg-purple-900/40 transition-colors">
+                                                        <div className="flex justify-between items-center w-full">
+                                                            <div className="truncate w-3/4 text-sm text-purple-100">{msg.texto}</div>
+                                                            <div className="flex gap-2 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity bg-black/50 p-1 rounded-lg">
+                                                                <button onClick={()=>abrirEditor('mensajes_soyin', msg.id, msg.texto, msg.fecha, msg.hora)} className="text-blue-400 hover:text-blue-300 p-2"><EditIcon size={16}/></button>
+                                                                <button onClick={()=>eliminarDocumento('mensajes_soyin', msg.id)} className="text-red-400 hover:text-red-300 p-2"><TrashIcon size={16}/></button>
+                                                            </div>
+                                                        </div>
+                                                        <span className="text-[8px] text-purple-300/50 mt-2 tracking-widest uppercase">{formatearFechaHora(msg.fecha, msg.hora)}</span>
+                                                    </div>
+                                                ))}
                                             </div>
-                                        ))}
+                                        )}
+
+                                        {adminTabSoyin === 'calendario' && (
+                                            <div className="animate-in">
+                                                <h3 className="text-yellow-400 font-bold text-xs mb-4 uppercase tracking-widest flex items-center gap-2"><CalendarIcon size={16}/> Eventos del Calendario</h3>
+                                                {eventosOrdenados.length === 0 && <p className="text-purple-300/50 italic text-sm text-center mt-10">No hay fechas importantes anotadas.</p>}
+                                                {eventosOrdenados.map(ev => (
+                                                    <div key={ev.id} className={`p-5 mb-3 rounded-xl border ${ev.isDefault ? 'bg-fuchsia-900/10 border-fuchsia-500/40' : 'bg-purple-900/20 border-yellow-500/30'} flex flex-col group relative`}>
+                                                        {!ev.isDefault && <button onClick={()=>eliminarDocumento('calendario', ev.id, "¿Borrar este evento?")} className="absolute top-4 right-4 text-purple-400 hover:text-red-400 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity p-2"><TrashIcon size={16}/></button>}
+                                                        <h4 className={`font-name text-2xl mb-1 ${ev.isDefault ? 'text-fuchsia-300' : 'text-yellow-300'}`}>{ev.titulo}</h4>
+                                                        
+                                                        <div className="flex flex-col gap-1 mb-3">
+                                                            <p className={`text-[10px] uppercase tracking-widest font-bold ${ev.isDefault ? 'text-fuchsia-400/70' : 'text-yellow-500/70'}`}>{formatearFechaSimple(ev.fecha)}</p>
+                                                            {!ev.isPast && ev.timeLeft ? (
+                                                                <span className={`text-[9px] font-bold tracking-widest uppercase inline-block w-fit px-2 py-1 rounded-md ${ev.isDefault ? 'bg-fuchsia-900/30 text-fuchsia-400' : 'bg-green-900/30 text-green-400'}`}>
+                                                                    Faltan {ev.timeLeft.days}d {ev.timeLeft.hours}h {ev.timeLeft.mins}m
+                                                                </span>
+                                                            ) : (
+                                                                <span className="text-[9px] font-bold tracking-widest uppercase inline-block w-fit px-2 py-1 rounded-md bg-white/5 text-gray-500">
+                                                                    Ya pasó
+                                                                </span>
+                                                            )}
+                                                        </div>
+
+                                                        {ev.nota && <p className="text-sm text-purple-100 italic border-t border-purple-500/20 pt-3">"{ev.nota}"</p>}
+                                                        <span className="text-[8px] text-purple-300/40 mt-3 uppercase">{ev.isDefault ? 'Evento Fijo del Sistema' : `Por ${ev.autor}`}</span>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
+
+                                        {adminTabSoyin === 'rutinas' && (
+                                            <div className="animate-in">
+                                                <h3 className="text-blue-400 font-bold text-xs mb-4 uppercase tracking-widest flex items-center gap-2"><BellIcon size={16}/> Todas las Rutinas</h3>
+                                                {rutinasOrdenadas.length === 0 && <p className="text-purple-300/50 italic text-sm text-center mt-10">No hay rutinas programadas.</p>}
+                                                {rutinasOrdenadas.map(rut => (
+                                                    <div key={rut.id} className={`p-5 mb-3 rounded-xl border flex items-center justify-between transition-colors ${rut.activa ? 'bg-blue-900/20 border-blue-500/30' : 'bg-white/5 border-white/10 opacity-60'}`}>
+                                                        <div>
+                                                            <h4 className={`font-name text-2xl mb-1 ${rut.activa ? 'text-blue-300' : 'text-gray-400'}`}>{rut.titulo}</h4>
+                                                            <p className="text-xs tracking-widest font-timer text-purple-100 bg-black/40 inline-block px-3 py-1 rounded-full">{rut.hora}</p>
+                                                            <p className="text-[8px] text-purple-300/40 mt-2 uppercase tracking-widest">Creado por {rut.autor}</p>
+                                                        </div>
+                                                        <div className="flex flex-col gap-3 items-end">
+                                                            <button onClick={()=>toggleRutina(rut.id, rut.activa)} className={`px-4 py-2 rounded-full text-[9px] uppercase tracking-widest font-bold shadow-lg ${rut.activa ? 'bg-blue-600 text-white' : 'bg-gray-600 text-gray-300'}`}>
+                                                                {rut.activa ? 'Activa' : 'Pausada'}
+                                                            </button>
+                                                            <button onClick={()=>eliminarDocumento('rutinas', rut.id, "¿Borrar esta rutina?")} className="text-purple-400 hover:text-red-400 p-2"><TrashIcon size={14}/></button>
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
                                     </div>
                                 </div>
                             </div>
@@ -674,6 +1137,12 @@
             // ==========================================
             return (
                 <div className="min-h-screen flex flex-col items-center justify-center relative w-full overflow-x-hidden">
+                    <EditModalComponent />
+                    <RutinaAlarmaModal />
+
+                    {/* Alarma de Audio oculta */}
+                    <audio ref={alarmAudioRef} src={alarmUrl || "https://actions.google.com/sounds/v1/alarms/digital_watch_alarm_long.ogg"} loop />
+
                     {/* Estrellas y Sol Fijos */}
                     <div className="fixed inset-0 pointer-events-none z-0">
                         {stars.map(star => <div key={star.id} className="absolute bg-white rounded-full w-1 h-1 animate-twinkle" style={star} />)}
@@ -701,7 +1170,9 @@
                                             <p className="font-body text-rose-100/90 text-lg md:text-xl leading-relaxed italic text-left">"{bienvenidaAnthony.texto}"</p>
                                             <div className="mt-6 text-right">
                                                 <p className="font-name text-2xl text-rose-300">Anthony</p>
-                                                <span className="text-[8px] text-rose-400/50 font-timer tracking-widest uppercase">{formatearFechaHoraBaseDatos(bienvenidaAnthony.timestamp)}</span>
+                                                <span className="text-[8px] text-rose-400/50 font-timer tracking-widest uppercase">
+                                                    {bienvenidaAnthony.fecha ? formatearFechaHora(bienvenidaAnthony.fecha, bienvenidaAnthony.hora) : formatearFechaHoraBaseDatos(bienvenidaAnthony.timestamp)}
+                                                </span>
                                             </div>
                                         </div>
                                     </ContenedorMagico>
@@ -716,7 +1187,9 @@
                                             <p className="font-body text-purple-100/90 text-lg md:text-xl leading-relaxed italic text-left">"{bienvenidaSoyin.texto}"</p>
                                             <div className="mt-6 text-right">
                                                 <p className="font-name text-2xl text-purple-300">Soyin</p>
-                                                <span className="text-[8px] text-purple-400/50 font-timer tracking-widest uppercase">{formatearFechaHoraBaseDatos(bienvenidaSoyin.timestamp)}</span>
+                                                <span className="text-[8px] text-purple-400/50 font-timer tracking-widest uppercase">
+                                                    {bienvenidaSoyin.fecha ? formatearFechaHora(bienvenidaSoyin.fecha, bienvenidaSoyin.hora) : formatearFechaHoraBaseDatos(bienvenidaSoyin.timestamp)}
+                                                </span>
                                             </div>
                                         </div>
                                     </ContenedorMagico>
@@ -726,7 +1199,11 @@
                                 )}
                             </div>
 
-                            <div onClick={() => setVistaActual('principal')} className="relative w-64 md:w-72 h-40 md:h-48 bg-[#1a1a2e] rounded-xl shadow-2xl cursor-pointer group hover:scale-[1.03] transition-transform mt-12">
+                            <div onClick={() => {
+                                setVistaActual('principal'); 
+                                // Esto permite que el audio de la alarma se desbloquee en los navegadores si se activa
+                                if(alarmAudioRef.current) { alarmAudioRef.current.load(); }
+                            }} className="relative w-64 md:w-72 h-40 md:h-48 bg-[#1a1a2e] rounded-xl shadow-2xl cursor-pointer group hover:scale-[1.03] transition-transform mt-12">
                                 <div className="absolute inset-0 border-2 border-rose-900/30 rounded-xl m-1"></div>
                                 <div className="absolute inset-0 m-auto w-14 h-14 bg-rose-600 rounded-full flex items-center justify-center shadow-[0_0_30px_rgba(225,29,72,0.5)] z-10 heart-beat">
                                     <HeartIcon fill="white" size={28} className="text-white" />
@@ -738,7 +1215,7 @@
                         </div>
                     )}
 
-                    {/* VISTAS INTERNAS */}
+                    {/* VISTAS INTERNAS PÚBLICAS */}
                     {vistaActual !== 'portada' && (
                         <div className="z-10 w-full max-w-4xl px-4 flex flex-col items-center relative animate-in py-10 min-h-screen">
                             
@@ -753,6 +1230,9 @@
                                         <button onClick={() => setVistaActual('diario')} className="flex items-center gap-2 px-5 py-2.5 bg-white/[0.05] hover:bg-white/[0.2] border border-white/10 rounded-full text-[10px] font-timer tracking-widest uppercase text-rose-300 backdrop-blur-md transition-all shadow-lg hover:scale-105">
                                             <BookIcon size={14}/> Leer el diario
                                         </button>
+                                        <button onClick={() => setVistaActual('calendario')} className="flex items-center gap-2 px-5 py-2.5 bg-white/[0.05] hover:bg-white/[0.2] border border-white/10 rounded-full text-[10px] font-timer tracking-widest uppercase text-yellow-300 backdrop-blur-md transition-all shadow-lg hover:scale-105">
+                                            <CalendarIcon size={14}/> Calendario Especial
+                                        </button>
                                         <button onClick={() => setVistaActual('portada')} className="flex items-center gap-2 px-5 py-2.5 bg-white/[0.05] hover:bg-white/[0.2] border border-white/10 rounded-full text-[10px] font-timer tracking-widest uppercase text-gray-400 backdrop-blur-md transition-all shadow-lg hover:scale-105">
                                             <ArrowLeftIcon size={14}/> Ver Portada
                                         </button>
@@ -762,12 +1242,12 @@
 
                             <h1 className={`text-7xl md:text-[10rem] font-name text-rose-100 mb-6 mt-10 drop-shadow-[0_0_20px_rgba(244,63,94,0.6)] animate-text-glow text-center transition-all duration-500 ${vistaActual === 'principal' ? 'block' : 'hidden'}`}>Soyin</h1>
 
-                            {/* VISTA 1: DIARIO COMPARTIDO */}
+                            {/* VISTA: DIARIO COMPARTIDO */}
                             {vistaActual === 'diario' && (
                                 <div className="w-full max-w-2xl bg-white/[0.02] backdrop-blur-xl border border-white/10 rounded-[3rem] p-6 md:p-12 shadow-[0_0_50px_rgba(0,0,0,0.5)] animate-in mx-auto mt-16">
                                     <h2 className="font-name text-4xl text-rose-300 text-center mb-10">Nuestro Diario</h2>
                                     <div className="relative border-l-2 border-white/10 ml-2 md:ml-4 space-y-12 pb-6">
-                                        {diario.map((entrada) => {
+                                        {diarioOrdenado.map((entrada) => {
                                             const esDeSoyin = entrada.autor === 'soyin';
                                             return (
                                                 <ContenedorMagico key={entrada.id} color={esDeSoyin ? "text-purple-400" : "text-rose-500"}>
@@ -777,7 +1257,9 @@
                                                             {formatearFechaSimple(entrada.fecha)} 
                                                             <span className="text-[8px] opacity-60 bg-white/10 px-2 py-[2px] rounded-full font-sans tracking-normal">{esDeSoyin ? 'Escrito por Flor' : 'Escrito por Anthony'}</span>
                                                         </p>
-                                                        <p className="text-[8px] text-gray-500 mb-3 uppercase tracking-widest">{formatearFechaHoraBaseDatos(entrada.timestamp)}</p>
+                                                        <p className="text-[8px] text-gray-500 mb-3 uppercase tracking-widest">
+                                                            {entrada.hora ? `A las ${entrada.hora}` : formatearFechaHoraBaseDatos(entrada.timestamp)}
+                                                        </p>
                                                         <div className={`bg-black/20 border p-5 mt-3 rounded-2xl font-body text-sm md:text-base leading-relaxed whitespace-pre-wrap shadow-lg ${esDeSoyin ? 'border-purple-500/20 text-purple-50' : 'border-rose-500/20 text-rose-50/90'}`}>
                                                             {entrada.texto}
                                                         </div>
@@ -785,18 +1267,53 @@
                                                 </ContenedorMagico>
                                             );
                                         })}
-                                        {diario.length === 0 && <p className="text-center text-white/40 italic">Aún no hay historias escritas.</p>}
+                                        {diarioOrdenado.length === 0 && <p className="text-center text-white/40 italic">Aún no hay historias escritas.</p>}
                                     </div>
                                 </div>
                             )}
 
-                            {/* VISTA 2: HISTORIAL EXPANDIDO DE ANTHONY (LATIDOS) */}
+                            {/* VISTA: CALENDARIO COMPARTIDO (EVENTOS PÚBLICOS) */}
+                            {vistaActual === 'calendario' && (
+                                <div className="w-full max-w-2xl bg-white/[0.02] backdrop-blur-xl border border-yellow-500/30 rounded-[3rem] p-6 md:p-12 shadow-[0_0_50px_rgba(250,204,21,0.1)] animate-in mx-auto mt-16">
+                                    <h2 className="font-name text-4xl text-yellow-400 text-center mb-10 flex justify-center items-center gap-3"><CalendarIcon size={32}/> Fechas Importantes</h2>
+                                    <div className="space-y-6">
+                                        {eventosOrdenados.length === 0 && <p className="text-center text-white/40 italic">El calendario está vacío.</p>}
+                                        {eventosOrdenados.map((ev) => (
+                                            <div key={ev.id} className={`relative bg-black/40 p-6 rounded-2xl border ${ev.isDefault ? 'border-fuchsia-500/30 shadow-[0_0_20px_rgba(217,70,239,0.1)]' : 'border-yellow-500/20'} shadow-lg hover:scale-[1.02] transition-transform`}>
+                                                <div className={`absolute top-0 right-0 ${ev.isDefault ? 'bg-fuchsia-600 text-white' : 'bg-yellow-600 text-black'} font-bold text-[9px] uppercase tracking-widest px-3 py-1 rounded-bl-xl rounded-tr-xl`}>
+                                                    {ev.isDefault ? 'Fecha Fija' : `Agendado por ${ev.autor}`}
+                                                </div>
+                                                <h3 className={`font-name text-3xl mb-1 ${ev.isDefault ? 'text-fuchsia-300' : 'text-yellow-300'}`}>{ev.titulo}</h3>
+                                                
+                                                <div className="flex flex-col gap-1 mb-4">
+                                                    <p className={`text-xs tracking-widest font-timer ${ev.isDefault ? 'text-fuchsia-100/70' : 'text-yellow-100/70'}`}>{formatearFechaSimple(ev.fecha)}</p>
+                                                    {!ev.isPast && ev.timeLeft ? (
+                                                        <span className={`text-[9px] font-bold tracking-widest uppercase inline-block w-fit px-2 py-1 rounded-md ${ev.isDefault ? 'bg-fuchsia-900/30 text-fuchsia-400' : 'bg-green-900/30 text-green-400'}`}>
+                                                            Faltan {ev.timeLeft.days}d {ev.timeLeft.hours}h {ev.timeLeft.mins}m
+                                                        </span>
+                                                    ) : (
+                                                        <span className="text-[9px] font-bold tracking-widest uppercase inline-block w-fit px-2 py-1 rounded-md bg-white/5 text-gray-500">
+                                                            Ya pasó
+                                                        </span>
+                                                    )}
+                                                </div>
+
+                                                {ev.nota && (
+                                                    <p className="font-body text-sm text-gray-300 bg-white/5 p-4 rounded-xl italic">"{ev.nota}"</p>
+                                                )}
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* VISTA: HISTORIAL EXPANDIDO DE ANTHONY (LATIDOS) */}
                             {vistaActual === 'historial_anthony' && (
                                 <div className="w-full max-w-2xl bg-white/[0.02] backdrop-blur-xl border border-rose-900/30 rounded-[3rem] p-6 md:p-12 shadow-[0_0_50px_rgba(225,29,72,0.1)] animate-in mx-auto mt-16">
                                     <h2 className="font-name text-4xl text-rose-300 text-center mb-10 flex items-center justify-center gap-3"><HeartIcon size={28} className="text-rose-500 heart-beat" fill="currentColor"/> Historial de Latidos de Anthony</h2>
                                     <div className="relative border-l-2 border-rose-900/30 ml-2 md:ml-4 space-y-12 pb-6">
-                                        {latidos.length === 0 && <p className="text-center text-white/40 italic">Aún no hay latidos guardados.</p>}
-                                        {latidos.map((l) => (
+                                        {latidosOrdenados.length === 0 && <p className="text-center text-white/40 italic">Aún no hay latidos guardados.</p>}
+                                        {latidosOrdenados.map((l) => (
                                             <ContenedorMagico key={l.id} color="text-rose-500">
                                                 <div className="relative pl-6 md:pl-8 w-full">
                                                     <div className="absolute -left-[9px] top-1 w-4 h-4 rounded-full bg-rose-600 ring-4 ring-[#020205] shadow-[0_0_10px_rgba(225,29,72,0.8)]"></div>
@@ -813,13 +1330,13 @@
                                 </div>
                             )}
 
-                            {/* VISTA 3: HISTORIAL EXPANDIDO DE SOYIN */}
+                            {/* VISTA: HISTORIAL EXPANDIDO DE SOYIN */}
                             {vistaActual === 'historial_soyin' && (
                                 <div className="w-full max-w-2xl bg-purple-900/10 backdrop-blur-xl border border-purple-500/30 rounded-[3rem] p-6 md:p-12 shadow-[0_0_50px_rgba(168,85,247,0.15)] animate-in mx-auto mt-16">
                                     <h2 className="font-name text-4xl text-purple-300 text-center mb-10 flex items-center justify-center gap-3"><HeartIcon size={28} className="text-purple-500 heart-beat" fill="currentColor"/> Historial de Latidos de Soyin</h2>
                                     <div className="relative border-l-2 border-purple-500/30 ml-2 md:ml-4 space-y-12 pb-6">
-                                        {mensajesSoyin.length === 0 && <p className="text-center text-white/40 italic">Aún no hay latidos guardados.</p>}
-                                        {mensajesSoyin.map((msg) => (
+                                        {mensajesSoyinOrdenados.length === 0 && <p className="text-center text-white/40 italic">Aún no hay latidos guardados.</p>}
+                                        {mensajesSoyinOrdenados.map((msg) => (
                                             <ContenedorMagico key={msg.id} color="text-purple-400">
                                                 <div className="relative pl-6 md:pl-8 w-full">
                                                     <div className="absolute -left-[9px] top-1 w-4 h-4 rounded-full bg-purple-500 ring-4 ring-[#020205] shadow-[0_0_10px_rgba(168,85,247,0.8)]"></div>
@@ -836,7 +1353,7 @@
                                 </div>
                             )}
 
-                            {/* VISTA 4: PANTALLA PRINCIPAL (HOY) */}
+                            {/* VISTA: PANTALLA PRINCIPAL */}
                             {vistaActual === 'principal' && (
                                 <div className="w-full max-w-2xl mx-auto flex flex-col items-center gap-8 relative z-10">
                                     
@@ -870,8 +1387,40 @@
                                     </div>
 
                                     {/* LA LUNA MÁGICA CONECTORA */}
-                                    <div className="relative flex flex-col items-center my-6">
+                                    <div className="relative flex flex-col items-center my-6 w-full">
                                         <div className="absolute h-full w-[2px] bg-gradient-to-b from-rose-500/30 via-white/10 to-purple-500/30 -z-10"></div>
+                                        
+                                        {/* CONTADOR DE EVENTOS PRÓXIMOS (3 DÍAS) */}
+                                        {eventosCercanos.length > 0 && (
+                                            <div className="mb-10 w-full flex flex-col gap-4 items-center z-20">
+                                                {eventosCercanos.map(ev => (
+                                                    <div key={ev.id} className="bg-[#1a160a] border border-yellow-500/50 p-6 rounded-3xl event-glow animate-pulse-slow text-center max-w-sm w-full">
+                                                        <div className="flex justify-center mb-2"><SparklesIcon size={20} className="text-yellow-400"/></div>
+                                                        <p className="text-[10px] text-yellow-500 uppercase tracking-widest font-bold mb-1">Se acerca una fecha especial</p>
+                                                        <h4 className="font-name text-2xl text-yellow-200 mb-4">{ev.titulo}</h4>
+                                                        <div className="flex justify-center gap-3 text-yellow-100 font-timer">
+                                                            <div className="bg-yellow-600/20 rounded-xl px-3 py-2 border border-yellow-500/30 flex flex-col">
+                                                                <span className="text-xl md:text-2xl font-bold">{ev.timeLeft.days}</span>
+                                                                <span className="text-[8px] uppercase tracking-wider">Días</span>
+                                                            </div>
+                                                            <div className="bg-yellow-600/20 rounded-xl px-3 py-2 border border-yellow-500/30 flex flex-col">
+                                                                <span className="text-xl md:text-2xl font-bold">{String(ev.timeLeft.hours).padStart(2,'0')}</span>
+                                                                <span className="text-[8px] uppercase tracking-wider">Horas</span>
+                                                            </div>
+                                                            <div className="bg-yellow-600/20 rounded-xl px-3 py-2 border border-yellow-500/30 flex flex-col">
+                                                                <span className="text-xl md:text-2xl font-bold">{String(ev.timeLeft.mins).padStart(2,'0')}</span>
+                                                                <span className="text-[8px] uppercase tracking-wider">Min</span>
+                                                            </div>
+                                                            <div className="bg-yellow-600/20 rounded-xl px-3 py-2 border border-yellow-500/30 flex flex-col">
+                                                                <span className="text-xl md:text-2xl font-bold">{String(ev.timeLeft.secs).padStart(2,'0')}</span>
+                                                                <span className="text-[8px] uppercase tracking-wider">Seg</span>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
+
                                         <div className="w-44 h-44 md:w-56 md:h-56 bg-neutral-100 rounded-full moon-glow flex flex-col items-center justify-center text-neutral-900 overflow-hidden border border-white/20 z-10 shadow-[0_0_60px_rgba(255,255,255,0.15)] relative">
                                             <div className="absolute inset-0 opacity-5 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-black to-transparent"></div>
                                             
