@@ -5,21 +5,19 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>El Rincón de Soyin</title>
     
-    <!-- Carga de Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
-    
-    <!-- Carga de React -->
     <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
-    
-    <!-- Carga de Babel para leer JSX directamente en el navegador -->
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
 
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Dancing+Script:wght@700&family=Cinzel:wght@400;700&family=Quicksand:wght@300;500&display=swap');
         
-        /* ¡Quitamos el overflow hidden para que haga scroll natural! */
-        body { margin: 0; background-color: #020205; }
+        body { margin: 0; background-color: #020205; color: white; }
         
         .font-name { font-family: 'Dancing Script', cursive; }
         .font-timer { font-family: 'Cinzel', serif; }
@@ -32,12 +30,11 @@
           45% { transform: scale(1.15); filter: drop-shadow(0 0 20px rgba(225, 29, 72, 0.6)); }
           100% { transform: scale(1); filter: drop-shadow(0 0 10px rgba(225, 29, 72, 0.4)); }
         }
-
         .heart-beat { animation: heartbeat-large 1.5s infinite ease-in-out; }
 
         @keyframes float-up {
           0% { transform: translateY(0) scale(0.5) rotate(0deg); opacity: 1; }
-          100% { transform: translateY(-150px) scale(1.5) rotate(45deg); opacity: 0; }
+          100% { transform: translateY(-100px) scale(1.5) rotate(45deg); opacity: 0; }
         }
         .animate-float-up { animation: float-up 1s ease-out forwards; }
 
@@ -53,13 +50,28 @@
         }
         .animate-pulse-slow { animation: pulse-slow 4s infinite ease-in-out; }
 
-        .moon-glow {
-          box-shadow: 0 0 60px rgba(255, 255, 255, 0.1), inset -10px -10px 20px rgba(0,0,0,0.5);
+        @keyframes text-glow {
+            0%, 100% { text-shadow: 0 0 20px rgba(244,63,94,0.3), 0 0 40px rgba(244,63,94,0.1); }
+            50% { text-shadow: 0 0 30px rgba(244,63,94,0.7), 0 0 60px rgba(244,63,94,0.3); }
         }
+        .animate-text-glow { animation: text-glow 4s infinite ease-in-out; }
+
+        .moon-glow { box-shadow: 0 0 60px rgba(255, 255, 255, 0.1), inset -10px -10px 20px rgba(0,0,0,0.5); }
         
-        /* Animaciones para la carta interior */
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.03);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-        .animate-in { animation: fadeIn 1s ease-in forwards; }
+        .animate-in { animation: fadeIn 0.6s ease-out forwards; }
+
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: rgba(255,255,255,0.02); }
+        ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.2); }
     </style>
 </head>
 <body>
@@ -68,367 +80,867 @@
     <script type="text/babel">
         const { useState, useEffect, useRef } = React;
 
-        // --- ICONOS SVG REEMPLAZANDO LUCIDE-REACT ---
-        const HeartIcon = ({ size = 24, className = "", fill = "none" }) => (
-            <svg width={size} height={size} className={className} fill={fill} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg>
-        );
-        const PlayIcon = ({ size = 24, className = "" }) => (
-            <svg width={size} height={size} className={className} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><polygon points="6 3 20 12 6 21 6 3"/></svg>
-        );
-        const PauseIcon = ({ size = 24, className = "" }) => (
-            <svg width={size} height={size} className={className} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><rect x="14" y="4" width="4" height="16" rx="1"/><rect x="6" y="4" width="4" height="16" rx="1"/></svg>
-        );
-        const SparklesIcon = ({ size = 24, className = "", style = {} }) => (
-            <svg width={size} height={size} className={className} style={style} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/></svg>
-        );
-        const ChevronRightIcon = ({ size = 24, className = "" }) => (
-            <svg width={size} height={size} className={className} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg>
-        );
-        const BookIcon = ({ size = 24, className = "" }) => (
-            <svg width={size} height={size} className={className} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"/></svg>
-        );
-        const ArrowLeftIcon = ({ size = 24, className = "" }) => (
-            <svg width={size} height={size} className={className} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"/></svg>
-        );
+        // --- ICONOS ---
+        const HeartIcon = ({ size=24, className="", fill="none", style={} }) => <svg width={size} height={size} className={className} fill={fill} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24" style={style}><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg>;
+        const PlayIcon = ({ size=24, className="" }) => <svg width={size} height={size} className={className} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><polygon points="6 3 20 12 6 21 6 3"/></svg>;
+        const PauseIcon = ({ size=24, className="" }) => <svg width={size} height={size} className={className} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><rect x="14" y="4" width="4" height="16" rx="1"/><rect x="6" y="4" width="4" height="16" rx="1"/></svg>;
+        const BookIcon = ({ size=24, className="" }) => <svg width={size} height={size} className={className} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"/></svg>;
+        const ArrowLeftIcon = ({ size=24, className="" }) => <svg width={size} height={size} className={className} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"/></svg>;
+        const TrashIcon = ({ size=24, className="" }) => <svg width={size} height={size} className={className} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>;
+        const EditIcon = ({ size=24, className="" }) => <svg width={size} height={size} className={className} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>;
+        const ListIcon = ({ size=24, className="" }) => <svg width={size} height={size} className={className} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><line x1="8" y1="6" x2="21" y2="6"></line><line x1="8" y1="12" x2="21" y2="12"></line><line x1="8" y1="18" x2="21" y2="18"></line><line x1="3" y1="6" x2="3.01" y2="6"></line><line x1="3" y1="12" x2="3.01" y2="12"></line><line x1="3" y1="18" x2="3.01" y2="18"></line></svg>;
+        const SparklesIcon = ({ size = 24, className = "" }) => <svg width={size} height={size} className={className} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1-1.275-1.275L12 3Z"/></svg>;
+        const EyeIcon = ({ size=24, className="" }) => <svg width={size} height={size} className={className} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>;
+        const EyeOffIcon = ({ size=24, className="" }) => <svg width={size} height={size} className={className} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><path d="M9.88 9.88a3 3 0 1 0 4.24 4.24"/><path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68"/><path d="M6.61 6.61A13.526 13.526 0 0 0 2 12s3 7 10 7a9.74 9.74 0 0 0 5.39-1.61"/><line x1="2" y1="2" x2="22" y2="22"/></svg>;
 
-        /* =========================================
-           BASE DE DATOS: DIARIO DE NUESTRO AMOR
-           ========================================= */
-        const entradasDiario = [
-            { 
-                fecha: "2026-05-02", 
-                texto: "He creado este espacio pensando en todo lo que siento por ti. Cada día lo alimentaré con aquellas cosas que solamente sienten mi pecho y mi alma. Será tu elección si deseas descubrirlo, pero me encargaré de cuidar este rincón para ti, por lo mucho que me importas y lo infinito que te amo..." 
-            },
-            { 
-                fecha: "2026-05-03", 
-                texto: "Si alguna vez ya pasaste por aquí… me alegra que hoy vuelvas.\n\nY si es la primera vez, entonces déjame decirte algo:\neste rincón no nació en un solo día…\n\nAquí guardo todo… incluso lo que a veces no sé cómo decirte.\n\nY si algún día dudas, recuerda esto:\nsi tú no lo recuerdas… yo me encargué de guardar cada detalle." 
-            }
-        ];
+        // ==========================================
+        // CONFIGURACIÓN FIREBASE
+        // ==========================================
+        const CORREO_ANTHONY = "anthonyfonjim@gmail.com"; 
+        const CORREO_SOYIN = "florsoyincastillo@gmail.com";
 
+        const firebaseConfig = {
+            apiKey: "AIzaSyC1s7lLrsC_bRgnCKg2ckBvvykiMvMLC5Q",
+            authDomain: "los-latidos-de-mi-corazon.firebaseapp.com",
+            projectId: "los-latidos-de-mi-corazon",
+            storageBucket: "los-latidos-de-mi-corazon.firebasestorage.app",
+            messagingSenderId: "850451293804",
+            appId: "1:850451293804:web:9c662b62ad10e68a241a49"
+        };
+
+        if (!firebase.apps.length) { firebase.initializeApp(firebaseConfig); }
+        const db = firebase.firestore();
+        const auth = firebase.auth();
+
+        // ==========================================
+        // COMPONENTE: EFECTO MAGICO
+        // ==========================================
+        const ContenedorMagico = ({ children, color = "text-rose-500" }) => {
+            const [particulas, setParticulas] = useState([]);
+            
+            const manejarClick = (e) => {
+                const rect = e.currentTarget.getBoundingClientRect();
+                const x = e.clientX - rect.left;
+                const y = e.clientY - rect.top;
+                const id = Date.now();
+                setParticulas(prev => [...prev, {id, x, y}]);
+                setTimeout(() => setParticulas(prev => prev.filter(p => p.id !== id)), 1000);
+            };
+
+            return (
+                <div onClick={manejarClick} className="relative cursor-pointer transition-transform hover:scale-[1.01] w-full">
+                    {children}
+                    {particulas.map(p => (
+                        <div key={p.id} className="absolute pointer-events-none z-50" style={{ left: p.x, top: p.y }}>
+                            {Array.from({length: 6}).map((_, i) => (
+                                <HeartIcon key={i} size={10 + Math.random()*15} className={`absolute animate-float-up ${color}`} fill="currentColor" 
+                                    style={{ 
+                                        left: `${(Math.random() - 0.5) * 60}px`, top: `${(Math.random() - 0.5) * 60}px`, animationDelay: `${Math.random() * 0.1}s`
+                                    }} 
+                                />
+                            ))}
+                        </div>
+                    ))}
+                </div>
+            );
+        };
+
+        // ==========================================
+        // APLICACIÓN PRINCIPAL
+        // ==========================================
         const App = () => {
-            const [isOpen, setIsOpen] = useState(false);
-            const [showDiario, setShowDiario] = useState(false);
+            // DB States
+            const [diario, setDiario] = useState([]);
+            const [latidos, setLatidos] = useState([]);
+            const [mensajesSoyin, setMensajesSoyin] = useState([]);
+            const [musicUrl, setMusicUrl] = useState("");
+            const [fechaInicioRelacion, setFechaInicioRelacion] = useState("2025-12-17");
+            const [bienvenidaAnthony, setBienvenidaAnthony] = useState({});
+            const [bienvenidaSoyin, setBienvenidaSoyin] = useState({});
+            
+            // Navegación Limpia y Blindada
+            const [vistaActual, setVistaActual] = useState('portada'); 
+            
+            // Interfaz
             const [isPlaying, setIsPlaying] = useState(false);
-            const [msgIndex, setMsgIndex] = useState(0);
+            const [idxLatidoHoy, setIdxLatidoHoy] = useState(0);
+            const [idxSoyinHoy, setIdxSoyinHoy] = useState(0);
             const [timeElapsed, setTimeElapsed] = useState({ days: 0, hours: 0, mins: 0, secs: 0 });
-            const [clickEffect, setClickEffect] = useState(0);
             const audioRef = useRef(null);
+            
+            // Login & Reset
+            const [showLogin, setShowLogin] = useState(false);
+            const [loginTarget, setLoginTarget] = useState(""); 
+            const [user, setUser] = useState(null);
+            const [email, setEmail] = useState("");
+            const [password, setPassword] = useState("");
+            const [showPass, setShowPass] = useState(false); 
+            const [isResettingPassword, setIsResettingPassword] = useState(false);
+            const [resetEmail, setResetEmail] = useState("");
+            
+            // Forms Anthony
+            const [nuevoTexto, setNuevoTexto] = useState("");
+            const [nuevaFecha, setNuevaFecha] = useState("");
+            const [nuevaHora, setNuevaHora] = useState("");
+            const [tipoMensaje, setTipoMensaje] = useState("latidos"); 
+            const [nuevaMusica, setNuevaMusica] = useState("");
+            const [nuevaFechaRelacion, setNuevaFechaRelacion] = useState("");
+            const [formBienvenidaAnthony, setFormBienvenidaAnthony] = useState("");
+            const [nuevaPassAnthony, setNuevaPassAnthony] = useState("");
+            const [confPassAnthony, setConfPassAnthony] = useState("");
+            const [showPassAnth, setShowPassAnth] = useState(false);
 
-            // Audio desde Dropbox
-            const musicUrl = "https://www.dropbox.com/scl/fi/gu9nc2hzwrdwe4j6juirr/WhatsApp-Audio-2026-05-02-at-12.41.30-AM.mpeg?rlkey=jk1xoc5fack3iz1895116zsdb&st=8vzi5jfn&raw=1"; 
+            // Forms Soyin
+            const [nuevoTextoSoyin, setNuevoTextoSoyin] = useState("");
+            const [fechaMensajeSoyin, setFechaMensajeSoyin] = useState("");
+            const [horaMensajeSoyin, setHoraMensajeSoyin] = useState("");
+            const [nuevoDiarioSoyin, setNuevoDiarioSoyin] = useState("");
+            const [fechaDiarioSoyin, setFechaDiarioSoyin] = useState("");
+            const [horaDiarioSoyin, setHoraDiarioSoyin] = useState("");
+            const [formBienvenidaSoyin, setFormBienvenidaSoyin] = useState("");
+            const [nuevaPassSoyin, setNuevaPassSoyin] = useState("");
+            const [confPassSoyin, setConfPassSoyin] = useState("");
+            const [showPassSoyin, setShowPassSoyin] = useState(false);
 
-            // ¡AQUÍ ESTABAN LOS ERRORES DE LAS COMAS! Ya están corregidos.
-            const thoughts = [
-                { texto: "Hoy mi corazón late un poco más fuerte al pensar en tu sonrisa.", fecha: "2026-05-02" },
-                { texto: "En este rincón, cada suspiro lleva tu nombre tatuado.", fecha: "2026-05-02" },
-                { texto: "Eres el refugio donde mi alma encuentra paz.", fecha: "2026-05-02" },
-                { texto: "Si pudieras escuchar mis latidos, oirías una canción dedicada a ti.", fecha: "2026-05-02" },
-                { texto: "Cada día a tu lado es un regalo que guardo en este espacio secreto.", fecha: "2026-05-02" },
-                { texto: "No importa la distancia, mi alma siempre encuentra el camino de regreso a ti.", fecha: "2026-05-02" },
-                { texto: "Eres la luz que ilumina incluso mis días más oscuros.", fecha: "2026-05-02" },
-                { texto: "En cada detalle de este rincón, hay un trocito de mi amor por ti.", fecha: "2026-05-02" },
-                { texto: "A veces me falta el aire, y solo tu recuerdo me devuelve la vida.", fecha: "2026-05-02" },
-                { texto: "Eres mi pensamiento favorito al despertar y mi último deseo al dormir.", fecha: "2026-05-02" },
-                { texto: "Aquí, el tiempo se detiene para que solo existamos tú y yo.", fecha: "2026-05-02" },
-                { texto: "Tu amor es el pulso que mantiene vivo este rincón.", fecha: "2026-05-02" },
-                { texto: "Gracias por ser la razón de mis latidos más profundos.", fecha: "2026-05-02" },
-                { texto: "Cada mensaje aquí es una promesa de que siempre estaré contigo.", fecha: "2026-05-02" },
-                { texto: "Eres la melodía que mi alma no deja de tararear.", fecha: "2026-05-02" },
-                { texto: "En la calma de este espacio, te digo: te amo más que ayer.", fecha: "2026-05-02" },
-                { texto: "Tu esencia está impregnada en cada letra que escribo aquí.", fecha: "2026-05-02" },
-                { texto: "Eres mi hogar, mi paz y mi mayor alegría.", fecha: "2026-05-02" },
-                { texto: "Mirar este rincón es recordarme lo afortunado que soy de tenerte.", fecha: "2026-05-02" },
-                { texto: "Eres la respuesta a todas las preguntas de mi corazón.", fecha: "2026-05-02" },
-                { texto: "No sé en qué momento dejé de entenderme, pero sé exactamente por qué: porque sentirte a ti me cambió por dentro.", fecha: "2026-05-03" },
-                { texto: "Hay algo en ti que desordena mi mente, pero le da sentido a todo lo que soy.", fecha: "2026-05-03" },
-                { texto: "Quisiera estar a tu lado no para decirte lo que siento, sino para que lo veas en cada gesto mío.", fecha: "2026-05-03" },
-                { texto: "No es solo que te quiera, es que contigo descubrí una forma más real de sentir la vida.", fecha: "2026-05-03" },
-                { texto: "Si sigo aquí es porque lo que siento por ti no es impulso, es una decisión que tomo todos los días.", fecha: "2026-05-03" },
-                { texto: "A veces me cuesta controlarme, no por debilidad, sino porque lo que provocas en mí es demasiado verdadero.", fecha: "2026-05-03" },
-                { texto: "No quiero a nadie más, no por falta de opciones, sino porque ya encontré en ti lo que vale la pena.", fecha: "2026-05-03" },
-                { texto: "No te necesito para existir, pero sí te elijo para construir algo que tenga sentido.", fecha: "2026-05-03" },
-                { texto: "Me haces querer ser mejor, no por miedo a perderte, sino por el deseo de merecerte.", fecha: "2026-05-03" },
-                { texto: "Hay una calma en pensar en ti que supera cualquier caos dentro de mí.", fecha: "2026-05-03" },
-                { texto: "No es obsesión… es que mi mundo encontró dirección cuando apareciste tú.", fecha: "2026-05-03" },
-                { texto: "Quiero cuidarte, pero no desde la necesidad, sino desde el compromiso de estar realmente presente.", fecha: "2026-05-03" },
-                { texto: "No prometo perfección, pero sí una verdad constante: quedarme cuando todo se vuelva difícil.", fecha: "2026-05-03" },
-                { texto: "Aunque no respondas, aunque el silencio pese, aquí sigo… no por costumbre, sino por convicción.", fecha: "2026-05-03" },
-                { texto: "No busco que siempre estés, pero sí que sepas que yo no me voy cuando las cosas se vuelven reales.", fecha: "2026-05-03" },
-                { texto: "Lo que siento por ti no es ruido, es algo profundo que incluso en silencio sigue creciendo.", fecha: "2026-05-03" },
-                { texto: "Si alguna vez dudas, recuerda esto: no estoy aquí por impulso, estoy aquí porque te elegí.", fecha: "2026-05-03" },
-                { texto: "Quiero avanzar contigo, no rápido… pero sí seguro, firme y sin mirar atrás.", fecha: "2026-05-03" },
-                { texto: "No eres todo mi mundo… pero sí la parte más importante de él.", fecha: "2026-05-03" },
-                { texto: "Si me quedo, no es porque no pueda irme… es porque contigo encontré un lugar donde quiero estar.", fecha: "2026-05-03" }
-            ];
+            const isAnthony = user?.email === CORREO_ANTHONY;
+            const isSoyin = user?.email === CORREO_SOYIN;
 
-            // Obtener el mensaje del día (el último guardado en el arreglo)
-            const mensajeDelDia = entradasDiario[entradasDiario.length - 1];
-
-            const formatearFecha = (fechaString) => {
-                const opciones = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
-                // Asegurar que la fecha se lea correctamente reemplazando guiones
-                const fecha = new Date(fechaString + "T00:00:00");
-                return fecha.toLocaleDateString('es-ES', opciones);
+            // Funciones Mágicas de Fechas y Segundos
+            const obtenerFechaHoyLocal = () => {
+                const hoy = new Date();
+                const year = hoy.getFullYear();
+                const month = String(hoy.getMonth() + 1).padStart(2, '0');
+                const day = String(hoy.getDate()).padStart(2, '0');
+                return `${year}-${month}-${day}`;
             };
 
+            const obtenerHoraExacta = () => {
+                const hoy = new Date();
+                return hoy.toLocaleTimeString('es-ES', {hour: '2-digit', minute:'2-digit', second:'2-digit'});
+            };
+
+            const formatearFechaHora = (fecha, hora) => {
+                if(!fecha) return "Fecha no registrada";
+                try {
+                    const d = new Date(`${fecha}T00:00:00`);
+                    if(isNaN(d.getTime())) return "Fecha inválida";
+                    return `${d.toLocaleDateString('es-ES', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })} a las ${hora || '12:00'}`;
+                } catch(e) { return "Fecha inválida"; }
+            };
+
+            const formatearFechaSimple = (fechaString) => {
+                if(!fechaString) return "Fecha no registrada";
+                try {
+                    const d = new Date(fechaString + "T00:00:00");
+                    if(isNaN(d.getTime())) return "Fecha inválida";
+                    return d.toLocaleDateString('es-ES', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+                } catch(e) { return "Fecha inválida"; }
+            };
+
+            const formatearFechaHoraBaseDatos = (ts) => {
+                if(!ts) return "Publicado hoy";
+                try {
+                    const d = ts.toDate ? ts.toDate() : new Date(ts);
+                    if(isNaN(d.getTime())) return "Publicado hoy";
+                    return d.toLocaleDateString('es-ES', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' });
+                } catch(e) { return "Publicado hoy"; }
+            };
+
+            // Cronómetro
             useEffect(() => {
-                const startDate = new Date('2025-12-17T00:00:00');
-                
+                const startDate = new Date(fechaInicioRelacion + 'T00:00:00');
                 const timer = setInterval(() => {
-                const now = new Date();
-                const diff = now - startDate;
-
-                if (diff > 0) {
-                    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
-                    const hours = Math.floor((diff / (1000 * 60 * 60)) % 24);
-                    const mins = Math.floor((diff / 1000 / 60) % 60);
-                    const secs = Math.floor((diff / 1000) % 60);
-                    setTimeElapsed({ days, hours, mins, secs });
-                }
+                    const diff = new Date() - startDate;
+                    if (diff > 0) {
+                        setTimeElapsed({
+                            days: Math.floor(diff / (1000 * 60 * 60 * 24)),
+                            hours: Math.floor((diff / (1000 * 60 * 60)) % 24),
+                            mins: Math.floor((diff / 1000 / 60) % 60),
+                            secs: Math.floor((diff / 1000) % 60)
+                        });
+                    }
                 }, 1000);
-
                 return () => clearInterval(timer);
-            }, []);
+            }, [fechaInicioRelacion]);
 
+            // Base de Datos Listener
             useEffect(() => {
-                setMsgIndex(Math.floor(Math.random() * thoughts.length));
+                const unsubAuth = auth.onAuthStateChanged(u => setUser(u));
+                
+                const unsubLatidos = db.collection("latidos").orderBy("timestamp", "desc").onSnapshot(snap => {
+                    setLatidos(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+                });
+                
+                const unsubDiario = db.collection("diario").orderBy("timestamp", "desc").onSnapshot(snap => {
+                    setDiario(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+                });
+
+                const unsubSoyinMsgs = db.collection("mensajes_soyin").orderBy("timestamp", "desc").onSnapshot(snap => {
+                    setMensajesSoyin(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+                });
+
+                const unsubConfig = db.collection("configuracion").doc("general").onSnapshot(doc => {
+                    if (doc.exists) { 
+                        setMusicUrl(doc.data().musicUrl); setNuevaMusica(doc.data().musicUrl); 
+                        if(doc.data().fechaInicioRelacion) {
+                            setFechaInicioRelacion(doc.data().fechaInicioRelacion);
+                            setNuevaFechaRelacion(doc.data().fechaInicioRelacion);
+                        }
+                    }
+                });
+
+                const unsubBienvenidaAnth = db.collection("bienvenida").doc("anthony").onSnapshot(doc => {
+                    if (doc.exists) { setBienvenidaAnthony(doc.data()); setFormBienvenidaAnthony(doc.data().texto || ""); }
+                });
+
+                const unsubBienvenidaSoy = db.collection("bienvenida").doc("soyin").onSnapshot(doc => {
+                    if (doc.exists) { setBienvenidaSoyin(doc.data()); setFormBienvenidaSoyin(doc.data().texto || ""); }
+                });
+
+                return () => { unsubAuth(); unsubLatidos(); unsubDiario(); unsubSoyinMsgs(); unsubConfig(); unsubBienvenidaAnth(); unsubBienvenidaSoy(); };
             }, []);
 
-            const nextMessage = () => {
-                let nextIdx;
-                do {
-                    nextIdx = Math.floor(Math.random() * thoughts.length);
-                } while (nextIdx === msgIndex && thoughts.length > 1);
-                
-                setMsgIndex(nextIdx);
-                setClickEffect((prev) => prev + 1);
-            };
+            // Filtros Estrictos de HOY
+            const hoyStr = obtenerFechaHoyLocal();
+            const latidosHoy = latidos.filter(l => l.fecha === hoyStr);
+            const mensajesSoyinHoy = mensajesSoyin.filter(m => m.fecha === hoyStr);
 
             const toggleMusic = () => {
-                if (isPlaying) {
-                    audioRef.current.pause();
-                } else {
-                    audioRef.current.play().catch(e => console.log("Audio play blocked"));
-                }
+                if (isPlaying) audioRef.current.pause();
+                else audioRef.current.play().catch(e => console.log(e));
                 setIsPlaying(!isPlaying);
             };
 
-            // Generar estrellas una sola vez
+            const abrirPanelLogin = (quien) => {
+                setLoginTarget(quien);
+                setIsResettingPassword(false);
+                if (user) {
+                    if ((quien === 'anthony' && !isAnthony) || (quien === 'soyin' && !isSoyin)) {
+                        auth.signOut();
+                    }
+                }
+                setShowLogin(true);
+            };
+
+            const handleLogin = async (e) => {
+                e.preventDefault();
+                try {
+                    await auth.signInWithEmailAndPassword(email, password);
+                } catch (error) {
+                    alert("Error: Verifica tus credenciales. (" + error.message + ")");
+                }
+            };
+
+            const handleResetPassword = async (e) => {
+                e.preventDefault();
+                if(!resetEmail) return alert("Por favor ingresa tu correo.");
+                try {
+                    await auth.sendPasswordResetEmail(resetEmail);
+                    alert("✅ Te hemos enviado un enlace para restablecer tu contraseña. Revisa tu bandeja de entrada o la carpeta de Spam.");
+                    setIsResettingPassword(false);
+                } catch (error) {
+                    alert("❌ Error: " + error.message);
+                }
+            };
+
+            const cerrarSesion = () => {
+                auth.signOut();
+                setShowLogin(false);
+            };
+
+            const cambiarPassword = async (e, nuevaPass, confPass, setNuevaPass, setConfPass) => {
+                e.preventDefault();
+                if(!auth.currentUser) return alert("Sesión expirada");
+                if(nuevaPass !== confPass) return alert("❌ Error: Las contraseñas no coinciden. Revisa que ambas sean idénticas.");
+                if(nuevaPass.length < 6) return alert("❌ Error: La contraseña debe tener al menos 6 caracteres.");
+                try {
+                    await auth.currentUser.updatePassword(nuevaPass);
+                    alert("✅ ¡Contraseña actualizada con éxito! Úsala la próxima vez que entres.");
+                    setNuevaPass(""); setConfPass("");
+                } catch (error) {
+                    if (error.code === 'auth/requires-recent-login') {
+                        alert("⚠️ Por seguridad, necesitas volver a Iniciar Sesión para cambiar la contraseña. Cierra sesión y vuelve a entrar.");
+                    } else {
+                        alert("Error: " + error.message);
+                    }
+                }
+            };
+
+            const editarDocumento = async (coleccion, id, textoActual) => {
+                const nuevoTexto = window.prompt("Edita tu mensaje:", textoActual);
+                if (nuevoTexto && nuevoTexto !== textoActual) {
+                    await db.collection(coleccion).doc(id).update({ texto: nuevoTexto });
+                }
+            };
+
+            const eliminarDocumento = async (coleccion, id) => {
+                if(window.confirm("¿Seguro que quieres borrar este recuerdo?")) await db.collection(coleccion).doc(id).delete();
+            };
+
+            // FUNCIONES AUTOMÁTICAS DE GUARDADO (Anthony)
+            const publicarMensajeAnthony = async(e) => {
+                e.preventDefault(); 
+                if(!nuevoTexto) return alert("Escribe un mensaje, por favor."); 
+                const fechaFinal = nuevaFecha || obtenerFechaHoyLocal();
+                const horaFinal = nuevaHora || obtenerHoraExacta();
+
+                try {
+                    await db.collection(tipoMensaje).add({
+                        texto: nuevoTexto, 
+                        fecha: fechaFinal, 
+                        hora: horaFinal, 
+                        autor: 'anthony', 
+                        timestamp: firebase.firestore.FieldValue.serverTimestamp()
+                    }); 
+                    setNuevoTexto(""); setNuevaFecha(""); setNuevaHora("");
+                    alert("¡Publicado mágicamente!"); 
+                } catch(error) {
+                    alert("Hubo un error al guardar: " + error.message);
+                }
+            };
+
+            const guardarBienvenidaAnthony = async (e) => {
+                e.preventDefault();
+                await db.collection("bienvenida").doc("anthony").set({texto: formBienvenidaAnthony, timestamp: firebase.firestore.FieldValue.serverTimestamp()});
+                await db.collection("diario").add({
+                    texto: `[Carta de Entrada]: ${formBienvenidaAnthony}`, fecha: obtenerFechaHoyLocal(), hora: obtenerHoraExacta(), autor: 'anthony', timestamp: firebase.firestore.FieldValue.serverTimestamp()
+                });
+                alert("Mensaje de entrada actualizado y guardado en tu historia");
+            };
+
+            // FUNCIONES AUTOMÁTICAS DE GUARDADO (Soyin)
+            const publicarDiarioSoyin = async(e) => {
+                e.preventDefault(); 
+                if(!nuevoDiarioSoyin) return; 
+                const fechaFinal = fechaDiarioSoyin || obtenerFechaHoyLocal();
+                const horaFinal = horaDiarioSoyin || obtenerHoraExacta();
+                await db.collection("diario").add({texto: nuevoDiarioSoyin, fecha: fechaFinal, hora: horaFinal, autor: 'soyin', timestamp: firebase.firestore.FieldValue.serverTimestamp()}); 
+                setNuevoDiarioSoyin(""); setFechaDiarioSoyin(""); setHoraDiarioSoyin("");
+                alert("¡Historia guardada en el Diario!"); 
+            };
+
+            const publicarMensajeCortoSoyin = async(e) => {
+                e.preventDefault(); 
+                if(!nuevoTextoSoyin) return; 
+                const fechaFinal = fechaMensajeSoyin || obtenerFechaHoyLocal();
+                const horaFinal = horaMensajeSoyin || obtenerHoraExacta();
+                await db.collection("mensajes_soyin").add({texto: nuevoTextoSoyin, fecha: fechaFinal, hora: horaFinal, timestamp: firebase.firestore.FieldValue.serverTimestamp()}); 
+                setNuevoTextoSoyin(""); setFechaMensajeSoyin(""); setHoraMensajeSoyin("");
+                alert("¡Latido guardado en tu historial (y en portada si es de hoy)!"); 
+            };
+
+            const guardarBienvenidaSoyin = async (e) => {
+                e.preventDefault();
+                await db.collection("bienvenida").doc("soyin").set({texto: formBienvenidaSoyin, timestamp: firebase.firestore.FieldValue.serverTimestamp()});
+                await db.collection("diario").add({
+                    texto: `[Carta de Entrada]: ${formBienvenidaSoyin}`, fecha: obtenerFechaHoyLocal(), hora: obtenerHoraExacta(), autor: 'soyin', timestamp: firebase.firestore.FieldValue.serverTimestamp()
+                });
+                alert("Mensaje de entrada actualizado y guardado en tu historia");
+            };
+
             const [stars] = useState(() => Array.from({ length: 60 }).map((_, i) => ({
-                id: i,
-                width: `${Math.random() * 3 + 1}px`,
-                height: `${Math.random() * 3 + 1}px`,
-                left: `${Math.random() * 100}%`,
-                top: `${Math.random() * 100}%`,
-                animationDuration: `${2 + Math.random() * 4}s`,
-                animationDelay: `${Math.random() * 5}s`,
-                opacity: Math.random()
+                id: i, left: `${Math.random() * 100}%`, top: `${Math.random() * 100}%`,
+                animationDuration: `${2 + Math.random() * 4}s`, animationDelay: `${Math.random() * 5}s`
             })));
 
-            return (
-                <div className="min-h-screen text-rose-50 flex flex-col items-center justify-center relative font-sans w-full">
-                    
-                    {/* Fondo de Estrellas */}
-                    <div className="fixed inset-0 pointer-events-none z-0">
-                        {stars.map((star) => (
-                        <div
-                            key={star.id}
-                            className="absolute bg-white rounded-full animate-twinkle"
-                            style={star}
-                        />
-                        ))}
-                    </div>
+            // ==========================================
+            // VISTA: LOGIN Y PANELES ADMINISTRATIVOS
+            // ==========================================
+            if (showLogin) {
+                if (!user || (loginTarget === 'anthony' && !isAnthony) || (loginTarget === 'soyin' && !isSoyin)) {
+                    return (
+                        <div className="min-h-screen flex items-center justify-center p-4 relative z-50 bg-[#020205]">
+                            <div className="fixed top-0 left-0 w-full h-full pointer-events-none z-0 overflow-hidden">
+                                <div className="absolute -top-20 -left-20 w-80 h-80 bg-amber-500/10 rounded-full blur-[100px]"></div>
+                            </div>
+                            
+                            {isResettingPassword ? (
+                                <form onSubmit={handleResetPassword} className="glass-panel p-8 rounded-3xl w-full max-w-md flex flex-col gap-5 relative z-10 shadow-[0_0_40px_rgba(0,0,0,0.5)]">
+                                    <h2 className={`font-name text-3xl text-center mb-2 ${loginTarget === 'soyin' ? 'text-purple-400' : 'text-rose-400'}`}>Recuperar Contraseña</h2>
+                                    <p className="text-[10px] text-gray-300 text-center uppercase tracking-widest mb-2">Ingresa tu correo para recibir el enlace seguro</p>
+                                    <input type="email" placeholder="Correo electrónico" required className={`p-3 bg-black/50 border border-white/10 rounded-lg outline-none ${loginTarget === 'soyin' ? 'focus:border-purple-500' : 'focus:border-rose-500'}`} value={resetEmail} onChange={e => setResetEmail(e.target.value)} />
+                                    <button type="submit" className={`mt-2 text-white p-3 rounded-lg text-sm tracking-[0.2em] uppercase font-bold transition-all hover:scale-[1.02] shadow-lg ${loginTarget === 'soyin' ? 'bg-purple-600 hover:bg-purple-700 shadow-purple-500/20' : 'bg-rose-600 hover:bg-rose-700 shadow-rose-500/20'}`}>Enviar enlace</button>
+                                    <button type="button" onClick={() => setIsResettingPassword(false)} className="text-xs text-gray-400 hover:text-white mt-2 uppercase tracking-widest transition-colors text-center">Volver atrás</button>
+                                </form>
+                            ) : (
+                                <form onSubmit={handleLogin} className="glass-panel p-8 rounded-3xl w-full max-w-md flex flex-col gap-5 relative z-10 shadow-[0_0_40px_rgba(0,0,0,0.5)]">
+                                    <h2 className={`font-name text-4xl text-center mb-2 ${loginTarget === 'soyin' ? 'text-purple-400' : 'text-rose-400'}`}>
+                                        {loginTarget === 'soyin' ? 'Acceso Soyin' : 'Acceso Anthony'}
+                                    </h2>
+                                    <input type="email" placeholder="Correo" required className={`p-3 bg-black/50 border border-white/10 rounded-lg outline-none ${loginTarget === 'soyin' ? 'focus:border-purple-500' : 'focus:border-rose-500'}`} value={email} onChange={e => setEmail(e.target.value)} />
+                                    <div className="flex flex-col">
+                                        <div className="relative">
+                                            <input type={showPass ? "text" : "password"} required placeholder="Contraseña" className={`w-full p-3 bg-black/50 border border-white/10 rounded-lg outline-none pr-10 ${loginTarget === 'soyin' ? 'focus:border-purple-500' : 'focus:border-rose-500'}`} value={password} onChange={e => setPassword(e.target.value)} />
+                                            <button type="button" onClick={()=>setShowPass(!showPass)} className="absolute right-3 top-3.5 text-gray-400 hover:text-white transition-colors">
+                                                {showPass ? <EyeOffIcon size={18}/> : <EyeIcon size={18}/>}
+                                            </button>
+                                        </div>
+                                        <button type="button" onClick={() => {setIsResettingPassword(true); setResetEmail(email);}} className="text-[10px] text-gray-400 hover:text-white uppercase tracking-widest transition-colors text-right mt-2">¿Olvidaste tu contraseña?</button>
+                                    </div>
+                                    <button type="submit" className={`mt-2 text-white p-3 rounded-lg text-sm tracking-[0.2em] uppercase font-bold transition-all hover:scale-[1.02] shadow-lg ${loginTarget === 'soyin' ? 'bg-purple-600 hover:bg-purple-700 shadow-purple-500/20' : 'bg-rose-600 hover:bg-rose-700 shadow-rose-500/20'}`}>Entrar</button>
+                                    <button type="button" onClick={() => setShowLogin(false)} className="text-xs text-gray-400 hover:text-white mt-2 uppercase tracking-widest transition-colors text-center">Volver al rincón</button>
+                                </form>
+                            )}
+                        </div>
+                    );
+                }
 
-                    {/* El Sol - Decoración de fondo */}
-                    <div className="absolute top-0 left-0 w-full h-full pointer-events-none z-0 overflow-hidden">
+                // PANEL ANTHONY MÁSTER
+                if (isAnthony) {
+                    return (
+                        <div className="min-h-screen p-4 md:p-8 font-body bg-[#020205] relative z-50">
+                            <div className="max-w-5xl mx-auto glass-panel p-6 md:p-8 rounded-3xl animate-in">
+                                <div className="flex flex-wrap justify-between items-center mb-8 gap-4 border-b border-white/10 pb-6">
+                                    <h2 className="font-name text-4xl text-rose-300">Panel Máster</h2>
+                                    <div className="flex flex-wrap gap-4 items-center bg-black/20 p-2 px-4 rounded-2xl border border-white/5">
+                                        <form onSubmit={(e) => cambiarPassword(e, nuevaPassAnthony, confPassAnthony, setNuevaPassAnthony, setConfPassAnthony)} className="flex items-center gap-2 mr-2 border-r border-white/10 pr-4">
+                                            <div className="relative">
+                                                <input type={showPassAnth ? "text" : "password"} placeholder="Nueva Contraseña" required className="p-2 pr-8 bg-black/40 border border-white/10 rounded text-[10px] outline-none focus:border-rose-500" value={nuevaPassAnthony} onChange={e=>setNuevaPassAnthony(e.target.value)} />
+                                                <button type="button" onClick={()=>setShowPassAnth(!showPassAnth)} className="absolute right-2 top-2 text-gray-500 hover:text-white"><EyeIcon size={12}/></button>
+                                            </div>
+                                            <input type={showPassAnth ? "text" : "password"} placeholder="Confirmar..." required className="p-2 bg-black/40 border border-white/10 rounded text-[10px] outline-none focus:border-rose-500" value={confPassAnthony} onChange={e=>setConfPassAnthony(e.target.value)} />
+                                            <button type="submit" className="text-[9px] bg-rose-600 hover:bg-rose-700 text-white px-3 py-2 rounded uppercase tracking-widest font-bold shadow-lg">Actualizar</button>
+                                        </form>
+                                        <button onClick={() => setShowLogin(false)} className="text-[10px] text-rose-300 border border-rose-500/30 px-4 py-2 rounded-full hover:bg-white/5 uppercase tracking-widest transition-colors">Cerrar Panel</button>
+                                        <button onClick={cerrarSesion} className="text-[10px] text-gray-400 border border-white/10 hover:text-white px-4 py-2 rounded-full uppercase tracking-widest transition-colors">Salir de Sesión</button>
+                                    </div>
+                                </div>
+
+                                <div className="grid md:grid-cols-2 gap-8">
+                                    <div className="space-y-6">
+                                        <form onSubmit={guardarBienvenidaAnthony} className="bg-black/20 p-5 rounded-2xl border border-white/5 flex flex-col gap-3 shadow-lg">
+                                            <h3 className="text-rose-400 font-bold text-[10px] uppercase tracking-[0.2em]">Tu carta en la Entrada principal</h3>
+                                            <textarea className="p-3 bg-black/30 border border-white/10 rounded-xl text-sm outline-none focus:border-rose-500" value={formBienvenidaAnthony} onChange={e=>setFormBienvenidaAnthony(e.target.value)} rows="3"></textarea>
+                                            <button type="submit" className="bg-rose-900/50 hover:bg-rose-800 text-rose-200 p-2 rounded-lg text-[10px] uppercase tracking-widest transition-colors">Actualizar Carta</button>
+                                        </form>
+
+                                        <form onSubmit={publicarMensajeAnthony} className="bg-black/20 p-6 rounded-2xl border border-white/5 flex flex-col gap-4 shadow-lg">
+                                            <h3 className="text-rose-400 font-bold text-[10px] uppercase tracking-[0.2em] flex items-center justify-between">
+                                                <span>Agregar Pensamiento o Diario</span>
+                                                <span className="text-[8px] text-gray-500 lowercase normal-case">(Déjalo en blanco para usar la hora exacta actual)</span>
+                                            </h3>
+                                            <select className="p-3 bg-black/30 border border-white/10 rounded-xl text-rose-300 outline-none text-sm focus:border-rose-500 cursor-pointer" value={tipoMensaje} onChange={e=>setTipoMensaje(e.target.value)}>
+                                                <option value="latidos">Latido (Mensaje Corto)</option>
+                                                <option value="diario">Entrada del Diario (Historia Larga)</option>
+                                            </select>
+                                            <textarea required placeholder="Escribe aquí tu pensamiento..." className="p-4 bg-black/30 border border-white/10 rounded-xl h-24 outline-none focus:border-rose-500 text-sm" value={nuevoTexto} onChange={e => setNuevoTexto(e.target.value)}></textarea>
+                                            <div className="grid grid-cols-2 gap-4">
+                                                <input type="date" className="p-3 bg-black/30 border border-white/10 rounded-xl outline-none [color-scheme:dark] text-sm focus:border-rose-500" value={nuevaFecha} onChange={e => setNuevaFecha(e.target.value)} />
+                                                <input type="time" className="p-3 bg-black/30 border border-white/10 rounded-xl outline-none [color-scheme:dark] text-sm focus:border-rose-500" value={nuevaHora} onChange={e => setNuevaHora(e.target.value)} />
+                                            </div>
+                                            <button type="submit" className="bg-rose-600 hover:bg-rose-700 text-white p-3 rounded-xl text-xs uppercase tracking-widest font-bold transition-colors shadow-[0_0_15px_rgba(225,29,72,0.3)] mt-2">Publicar Mágicamente</button>
+                                        </form>
+
+                                        <form onSubmit={async (e) => { e.preventDefault(); await db.collection("configuracion").doc("general").set({musicUrl: nuevaMusica, fechaInicioRelacion: nuevaFechaRelacion}, {merge:true}); alert("Ajustes guardados"); }} className="bg-black/20 p-5 rounded-2xl border border-white/5 flex flex-col gap-3 shadow-lg">
+                                            <h3 className="text-blue-400 font-bold text-[10px] uppercase tracking-[0.2em]">Ajustes de Sistema</h3>
+                                            <label className="text-[10px] text-gray-400 uppercase tracking-widest mt-1">Enlace de Música:</label>
+                                            <input required type="url" placeholder="Link de Dropbox" className="p-2 px-3 bg-black/30 border border-white/10 rounded-lg outline-none text-xs focus:border-blue-500" value={nuevaMusica} onChange={e => setNuevaMusica(e.target.value)} />
+                                            <label className="text-[10px] text-gray-400 uppercase tracking-widest mt-2">Fecha Inicio Relación (Para la Luna):</label>
+                                            <input required type="date" className="p-2 px-3 bg-black/30 border border-white/10 rounded-lg outline-none text-xs [color-scheme:dark] focus:border-blue-500" value={nuevaFechaRelacion} onChange={e => setNuevaFechaRelacion(e.target.value)} />
+                                            <button type="submit" className="bg-blue-600/50 hover:bg-blue-700 text-white p-2 rounded-lg text-[10px] uppercase tracking-widest transition-colors mt-2">Guardar Ajustes</button>
+                                        </form>
+                                    </div>
+
+                                    <div className="bg-black/20 p-6 rounded-2xl border border-white/5 h-[800px] overflow-y-auto shadow-lg">
+                                        <h3 className="text-rose-400 font-bold text-xs mb-4 uppercase tracking-widest flex items-center gap-2"><ListIcon size={16}/> Tu Historial Total</h3>
+                                        
+                                        <p className="text-gray-400 text-[10px] uppercase tracking-widest mb-3 border-b border-white/10 pb-2 mt-4 text-center">Tus Entradas en el Diario</p>
+                                        {diario.filter(d => d.autor !== 'soyin').map(d => (
+                                            <div key={d.id} className="p-4 bg-white/5 mb-3 rounded-xl border border-white/10 flex justify-between items-center group hover:bg-white/10 transition-colors">
+                                                <div className="truncate w-3/4 text-sm text-rose-100">{d.texto}</div>
+                                                <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity bg-black/50 p-1 rounded-lg">
+                                                    <button onClick={()=>editarDocumento('diario', d.id, d.texto)} className="text-blue-400 hover:text-blue-300 p-1"><EditIcon size={16}/></button>
+                                                    <button onClick={()=>eliminarDocumento('diario', d.id)} className="text-red-500 hover:text-red-400 p-1"><TrashIcon size={16}/></button>
+                                                </div>
+                                            </div>
+                                        ))}
+
+                                        <p className="text-gray-400 text-[10px] uppercase tracking-widest mt-8 mb-3 border-b border-white/10 pb-2 text-center">Todos Tus Latidos Cortos</p>
+                                        {latidos.map(l => (
+                                            <div key={l.id} className="p-4 bg-white/5 mb-3 rounded-xl border border-white/10 flex flex-col group hover:bg-white/10 transition-colors">
+                                                <div className="flex justify-between items-center w-full">
+                                                    <div className="truncate w-3/4 text-sm text-rose-100">{l.texto}</div>
+                                                    <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity bg-black/50 p-1 rounded-lg">
+                                                        <button onClick={()=>editarDocumento('latidos', l.id, l.texto)} className="text-blue-400 hover:text-blue-300 p-1"><EditIcon size={16}/></button>
+                                                        <button onClick={()=>eliminarDocumento('latidos', l.id)} className="text-red-500 hover:text-red-400 p-1"><TrashIcon size={16}/></button>
+                                                    </div>
+                                                </div>
+                                                <span className="text-[9px] text-gray-500 mt-2 tracking-widest uppercase">{formatearFechaHora(l.fecha, l.hora)}</span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    );
+                }
+
+                // PANEL DE SOYIN
+                if (isSoyin) {
+                    return (
+                        <div className="min-h-screen p-4 md:p-8 font-body bg-[#020205] relative z-50">
+                            <div className="max-w-5xl mx-auto glass-panel p-6 md:p-10 rounded-3xl animate-in relative border border-purple-500/30">
+                                <div className="flex flex-wrap justify-between items-center mb-8 gap-4 border-b border-purple-500/20 pb-6">
+                                    <div>
+                                        <h2 className="font-name text-4xl text-purple-300">Hola, mi amor</h2>
+                                        <p className="text-purple-200/60 text-[10px] tracking-widest uppercase mt-1">Tu espacio para dejar huella en nuestro mundo</p>
+                                    </div>
+                                    <div className="flex flex-wrap gap-4 items-center bg-purple-900/10 p-2 px-4 rounded-2xl border border-purple-500/20">
+                                        <form onSubmit={(e) => cambiarPassword(e, nuevaPassSoyin, confPassSoyin, setNuevaPassSoyin, setConfPassSoyin)} className="flex items-center gap-2 mr-2 border-r border-purple-500/20 pr-4">
+                                            <div className="relative">
+                                                <input type={showPassSoyin ? "text" : "password"} placeholder="Nueva Contraseña" required className="p-2 pr-8 bg-black/40 border border-purple-500/30 rounded text-[10px] outline-none focus:border-purple-400 text-purple-100" value={nuevaPassSoyin} onChange={e=>setNuevaPassSoyin(e.target.value)} />
+                                                <button type="button" onClick={()=>setShowPassSoyin(!showPassSoyin)} className="absolute right-2 top-2 text-purple-400/50 hover:text-purple-300"><EyeIcon size={12}/></button>
+                                            </div>
+                                            <input type={showPassSoyin ? "text" : "password"} placeholder="Confirmar..." required className="p-2 bg-black/40 border border-purple-500/30 rounded text-[10px] outline-none focus:border-purple-400 text-purple-100" value={confPassSoyin} onChange={e=>setConfPassSoyin(e.target.value)} />
+                                            <button type="submit" className="text-[9px] bg-purple-600 hover:bg-purple-700 text-white px-3 py-2 rounded uppercase tracking-widest font-bold shadow-lg shadow-purple-500/20">Actualizar</button>
+                                        </form>
+                                        <button onClick={() => setShowLogin(false)} className="text-[10px] text-purple-300 border border-purple-500/30 px-4 py-2 rounded-full hover:bg-purple-900/30 uppercase tracking-widest transition-colors">Cerrar Panel</button>
+                                        <button onClick={cerrarSesion} className="text-[10px] text-gray-400 border border-white/10 hover:text-white px-4 py-2 rounded-full uppercase tracking-widest transition-colors">Cerrar Sesión</button>
+                                    </div>
+                                </div>
+                                
+                                <div className="grid md:grid-cols-2 gap-8">
+                                    <div className="space-y-6">
+                                        <form onSubmit={guardarBienvenidaSoyin} className="bg-purple-900/10 p-5 rounded-2xl border border-purple-500/20 flex flex-col gap-3 shadow-[0_0_20px_rgba(147,51,234,0.05)]">
+                                            <h3 className="text-purple-300 font-bold text-[10px] uppercase tracking-[0.2em]">Tus palabras en la Entrada principal</h3>
+                                            <textarea className="p-3 bg-black/40 border border-purple-500/30 rounded-xl text-sm outline-none text-purple-100 focus:border-purple-400" value={formBienvenidaSoyin} onChange={e=>setFormBienvenidaSoyin(e.target.value)} rows="3"></textarea>
+                                            <button type="submit" className="bg-purple-900/50 hover:bg-purple-800 text-purple-200 p-2 rounded-lg text-[10px] uppercase tracking-widest transition-colors">Actualizar Carta</button>
+                                        </form>
+
+                                        <form onSubmit={publicarDiarioSoyin} className="bg-purple-900/10 p-6 rounded-2xl border border-purple-500/20 flex flex-col gap-4 shadow-[0_0_20px_rgba(147,51,234,0.05)]">
+                                            <h3 className="text-purple-300 font-bold text-[10px] uppercase tracking-[0.2em] flex justify-between">
+                                                <span>Escribir en nuestro Diario</span>
+                                                <span className="text-[8px] text-gray-500 normal-case">(Vacío = Exactamente ahora)</span>
+                                            </h3>
+                                            <textarea required placeholder="Cuenta una historia, un recuerdo, lo que sientes..." className="p-4 bg-black/40 border border-purple-500/30 rounded-xl h-20 outline-none focus:border-purple-400 text-purple-50 text-sm" value={nuevoDiarioSoyin} onChange={e => setNuevoDiarioSoyin(e.target.value)}></textarea>
+                                            <div className="grid grid-cols-2 gap-4">
+                                                <input type="date" className="p-3 bg-black/40 border border-purple-500/30 rounded-xl outline-none [color-scheme:dark] text-sm text-purple-100 focus:border-purple-400" value={fechaDiarioSoyin} onChange={e => setFechaDiarioSoyin(e.target.value)} />
+                                                <input type="time" className="p-3 bg-black/40 border border-purple-500/30 rounded-xl outline-none [color-scheme:dark] text-sm text-purple-100 focus:border-purple-400" value={horaDiarioSoyin} onChange={e => setHoraDiarioSoyin(e.target.value)} />
+                                            </div>
+                                            <button type="submit" className="bg-purple-600 hover:bg-purple-700 text-white p-3 rounded-xl text-xs uppercase tracking-widest font-bold shadow-[0_0_15px_rgba(147,51,234,0.3)] transition-colors mt-2">Guardar Mágicamente</button>
+                                        </form>
+
+                                        <form onSubmit={publicarMensajeCortoSoyin} className="flex flex-col gap-4 mt-8">
+                                            <h3 className="text-purple-300 font-bold text-[10px] uppercase tracking-[0.2em] flex justify-between items-center">
+                                                <span className="flex items-center gap-2"><SparklesIcon size={14}/> Un latido corto para él</span>
+                                                <span className="text-[8px] text-gray-500 normal-case">(Vacío = Exactamente ahora)</span>
+                                            </h3>
+                                            <textarea required placeholder="De ti, para él..." className="p-4 bg-purple-900/20 border border-purple-500/40 rounded-xl h-24 outline-none focus:border-purple-400 text-purple-50 text-sm shadow-[inset_0_0_20px_rgba(147,51,234,0.1)]" value={nuevoTextoSoyin} onChange={e => setNuevoTextoSoyin(e.target.value)}></textarea>
+                                            <div className="grid grid-cols-2 gap-4">
+                                                <input type="date" className="p-3 bg-black/40 border border-purple-500/30 rounded-xl outline-none [color-scheme:dark] text-sm text-purple-100 focus:border-purple-400" value={fechaMensajeSoyin} onChange={e => setFechaMensajeSoyin(e.target.value)} />
+                                                <input type="time" className="p-3 bg-black/40 border border-purple-500/30 rounded-xl outline-none [color-scheme:dark] text-sm text-purple-100 focus:border-purple-400" value={horaMensajeSoyin} onChange={e => setHoraMensajeSoyin(e.target.value)} />
+                                            </div>
+                                            <button type="submit" className="bg-fuchsia-600 hover:bg-fuchsia-700 text-white p-3 rounded-xl text-xs uppercase tracking-[0.2em] font-bold shadow-[0_0_20px_rgba(192,38,211,0.5)] transition-colors transform hover:scale-[1.02]">Dejar Latido</button>
+                                        </form>
+                                    </div>
+
+                                    <div className="bg-purple-900/5 p-6 rounded-2xl border border-purple-500/20 h-[800px] overflow-y-auto shadow-[0_0_20px_rgba(147,51,234,0.05)]">
+                                        <h3 className="text-purple-300 font-bold text-xs mb-4 uppercase tracking-widest flex items-center gap-2"><ListIcon size={16}/> Tu Historial Total</h3>
+                                        
+                                        <p className="text-purple-400/60 text-[9px] uppercase tracking-widest mb-3 mt-4 text-center border-b border-purple-500/20 pb-2">En el Diario Compartido:</p>
+                                        {diario.filter(d => d.autor === 'soyin').map(d => (
+                                            <div key={d.id} className="p-4 bg-purple-900/20 mb-3 rounded-xl border border-purple-500/20 flex justify-between items-center group hover:bg-purple-900/40 transition-colors">
+                                                <div className="truncate w-3/4 text-sm text-purple-100">{d.texto}</div>
+                                                <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity bg-black/50 p-1 rounded-lg">
+                                                    <button onClick={()=>editarDocumento('diario', d.id, d.texto)} className="text-blue-400 hover:text-blue-300 p-1"><EditIcon size={16}/></button>
+                                                    <button onClick={()=>eliminarDocumento('diario', d.id)} className="text-red-400 hover:text-red-300 p-1"><TrashIcon size={16}/></button>
+                                                </div>
+                                            </div>
+                                        ))}
+
+                                        <p className="text-purple-400/60 text-[9px] uppercase tracking-widest mb-3 mt-8 text-center border-b border-purple-500/20 pb-2">Tus Latidos Cortos:</p>
+                                        {mensajesSoyin.map(msg => (
+                                            <div key={msg.id} className="p-4 bg-purple-900/20 mb-3 rounded-xl border border-purple-500/20 flex flex-col group hover:bg-purple-900/40 transition-colors">
+                                                <div className="flex justify-between items-center w-full">
+                                                    <div className="truncate w-3/4 text-sm text-purple-100">{msg.texto}</div>
+                                                    <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity bg-black/50 p-1 rounded-lg">
+                                                        <button onClick={()=>editarDocumento('mensajes_soyin', msg.id, msg.texto)} className="text-blue-400 hover:text-blue-300 p-1"><EditIcon size={16}/></button>
+                                                        <button onClick={()=>eliminarDocumento('mensajes_soyin', msg.id)} className="text-red-400 hover:text-red-300 p-1"><TrashIcon size={16}/></button>
+                                                    </div>
+                                                </div>
+                                                <span className="text-[8px] text-purple-300/50 mt-2 tracking-widest uppercase">{formatearFechaHora(msg.fecha, msg.hora)}</span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    );
+                }
+            }
+
+            // ==========================================
+            // VISTA PÚBLICA: NAVEGACIÓN Y PANTALLAS
+            // ==========================================
+            return (
+                <div className="min-h-screen flex flex-col items-center justify-center relative w-full overflow-x-hidden">
+                    {/* Estrellas y Sol Fijos */}
+                    <div className="fixed inset-0 pointer-events-none z-0">
+                        {stars.map(star => <div key={star.id} className="absolute bg-white rounded-full w-1 h-1 animate-twinkle" style={star} />)}
+                    </div>
+                    <div className="fixed top-0 left-0 w-full h-full pointer-events-none z-0 overflow-hidden">
                         <div className="absolute -top-20 -left-20 w-80 h-80 bg-amber-500/10 rounded-full blur-[100px]"></div>
                         <div className="absolute top-8 left-8 md:top-16 md:left-16 w-24 h-24 md:w-32 md:h-32 bg-gradient-to-tr from-amber-200 to-yellow-50 rounded-full shadow-[0_0_80px_rgba(251,191,36,0.4)] animate-pulse-slow flex items-center justify-center opacity-80">
                             <div className="w-full h-full bg-white rounded-full blur-[8px] absolute opacity-40"></div>
                         </div>
                     </div>
 
-                    {/* ============================================
-                        PANTALLA 1: MENSAJE DE ENTRADA DEL DÍA
-                        ============================================ */}
-                    {!isOpen ? (
-                        <div className="z-20 flex flex-col items-center animate-in max-w-2xl px-6 py-12 text-center min-h-screen justify-center">
+                    {/* VISTA 0: ENTRADA PRINCIPAL (PORTADA) */}
+                    {vistaActual === 'portada' && (
+                        <div className="z-20 flex flex-col items-center animate-in max-w-4xl px-4 py-12 text-center min-h-screen justify-center w-full">
+                            <h2 className="font-name text-4xl md:text-5xl text-rose-200 mb-12 drop-shadow-md border-b border-white/10 pb-4">Nuestra Historia</h2>
                             
-                            <p className="font-timer tracking-[0.3em] text-rose-500 text-xs md:text-sm uppercase mb-4 opacity-80">
-                                {formatearFecha(mensajeDelDia.fecha)}
-                            </p>
-                            
-                            <h2 className="font-name text-4xl md:text-5xl text-rose-200 mb-8 drop-shadow-md">
-                                Pensamiento de Hoy
-                            </h2>
-
-                            <div className="font-body text-base md:text-lg text-rose-100/90 mb-12 leading-relaxed italic drop-shadow-md whitespace-pre-wrap px-4">
-                                "{mensajeDelDia.texto}"
+                            <div className="flex flex-col gap-10 font-body w-full">
+                                {bienvenidaAnthony?.texto && (
+                                    <ContenedorMagico color="text-rose-500">
+                                        <div className="relative bg-gradient-to-br from-[#1a1a2e]/80 to-black/40 backdrop-blur-md border border-rose-900/50 p-8 md:p-10 rounded-sm shadow-[0_0_40px_rgba(225,29,72,0.1)] w-full md:w-[85%] mx-auto transform rotate-[-1deg]">
+                                            <div className="absolute -top-4 left-1/2 transform -translate-x-1/2">
+                                                <HeartIcon size={28} className="text-rose-600 drop-shadow-md" fill="currentColor"/>
+                                            </div>
+                                            <h3 className="font-name text-3xl text-rose-400 mb-4 text-left">Para mi amada Soyin...</h3>
+                                            <p className="font-body text-rose-100/90 text-lg md:text-xl leading-relaxed italic text-left">"{bienvenidaAnthony.texto}"</p>
+                                            <div className="mt-6 text-right">
+                                                <p className="font-name text-2xl text-rose-300">Anthony</p>
+                                                <span className="text-[8px] text-rose-400/50 font-timer tracking-widest uppercase">{formatearFechaHoraBaseDatos(bienvenidaAnthony.timestamp)}</span>
+                                            </div>
+                                        </div>
+                                    </ContenedorMagico>
+                                )}
+                                {bienvenidaSoyin?.texto && (
+                                    <ContenedorMagico color="text-purple-400">
+                                        <div className="relative bg-gradient-to-br from-purple-900/20 to-black/40 backdrop-blur-md border border-purple-500/30 p-8 md:p-10 rounded-sm shadow-[0_0_40px_rgba(168,85,247,0.1)] w-full md:w-[85%] mx-auto transform rotate-[1deg]">
+                                            <div className="absolute -top-4 left-1/2 transform -translate-x-1/2">
+                                                <HeartIcon size={28} className="text-purple-500 drop-shadow-md" fill="currentColor"/>
+                                            </div>
+                                            <h3 className="font-name text-3xl text-purple-300 mb-4 text-left">Para ti, mi amor...</h3>
+                                            <p className="font-body text-purple-100/90 text-lg md:text-xl leading-relaxed italic text-left">"{bienvenidaSoyin.texto}"</p>
+                                            <div className="mt-6 text-right">
+                                                <p className="font-name text-2xl text-purple-300">Soyin</p>
+                                                <span className="text-[8px] text-purple-400/50 font-timer tracking-widest uppercase">{formatearFechaHoraBaseDatos(bienvenidaSoyin.timestamp)}</span>
+                                            </div>
+                                        </div>
+                                    </ContenedorMagico>
+                                )}
+                                {!bienvenidaAnthony?.texto && !bienvenidaSoyin?.texto && (
+                                    <p className="text-white/30 italic text-sm">Esperando nuestras primeras palabras...</p>
+                                )}
                             </div>
 
-                            <div 
-                                onClick={() => setIsOpen(true)}
-                                className="relative w-72 h-48 bg-[#1a1a2e] rounded-lg shadow-2xl cursor-pointer group hover:scale-105 transition-transform"
-                            >
-                                <div className="absolute inset-0 border-2 border-rose-900/30 rounded-lg m-1"></div>
-                                <div className="absolute top-0 left-0 w-full h-full" style={{ clipPath: 'polygon(0 0, 50% 50%, 100% 0)', background: '#16213e' }}></div>
-                                <div className="absolute inset-0 m-auto w-12 h-12 bg-rose-600 rounded-full flex items-center justify-center shadow-lg z-10 heart-beat">
-                                    <HeartIcon fill="white" size={24} className="text-white" />
+                            <div onClick={() => setVistaActual('principal')} className="relative w-64 md:w-72 h-40 md:h-48 bg-[#1a1a2e] rounded-xl shadow-2xl cursor-pointer group hover:scale-[1.03] transition-transform mt-12">
+                                <div className="absolute inset-0 border-2 border-rose-900/30 rounded-xl m-1"></div>
+                                <div className="absolute inset-0 m-auto w-14 h-14 bg-rose-600 rounded-full flex items-center justify-center shadow-[0_0_30px_rgba(225,29,72,0.5)] z-10 heart-beat">
+                                    <HeartIcon fill="white" size={28} className="text-white" />
                                 </div>
-                                <div className="absolute bottom-4 w-full text-center">
-                                    <p className="text-[10px] tracking-[0.4em] uppercase text-rose-300/60 font-bold">Entrar a mi corazón</p>
+                                <div className="absolute bottom-5 w-full text-center">
+                                    <p className="text-[10px] tracking-[0.4em] uppercase text-rose-300/80 font-bold">Entrar al Refugio</p>
                                 </div>
                             </div>
                         </div>
-                    ) : (
+                    )}
+
+                    {/* VISTAS INTERNAS */}
+                    {vistaActual !== 'portada' && (
                         <div className="z-10 w-full max-w-4xl px-4 flex flex-col items-center relative animate-in py-10 min-h-screen">
-                        
-                            {/* BOTÓN PARA ABRIR/CERRAR EL DIARIO */}
-                            <div className="absolute top-4 right-4 md:top-8 md:right-8 z-30">
-                                <button 
-                                    onClick={() => setShowDiario(!showDiario)}
-                                    className="flex items-center gap-2 px-4 py-2 bg-white/[0.05] hover:bg-white/[0.1] border border-white/10 rounded-full transition-colors text-[10px] md:text-xs font-timer tracking-widest uppercase text-rose-300 backdrop-blur-md"
-                                >
-                                    {showDiario ? (
-                                        <><ArrowLeftIcon size={16}/> Volver a latidos</>
-                                    ) : (
-                                        <><BookIcon size={16}/> Ver nuestro diario</>
-                                    )}
-                                </button>
+                            
+                            {/* MENU DE NAVEGACIÓN SUPERIOR */}
+                            <div className="absolute top-4 right-4 z-30 flex flex-col gap-2 items-end">
+                                {vistaActual !== 'principal' ? (
+                                    <button onClick={() => setVistaActual('principal')} className="flex items-center gap-2 px-5 py-2.5 bg-white/[0.05] hover:bg-white/[0.2] border border-white/10 rounded-full text-[10px] font-timer tracking-widest uppercase text-rose-300 backdrop-blur-md transition-all shadow-lg hover:scale-105">
+                                        <ArrowLeftIcon size={14}/> Volver al inicio
+                                    </button>
+                                ) : (
+                                    <>
+                                        <button onClick={() => setVistaActual('diario')} className="flex items-center gap-2 px-5 py-2.5 bg-white/[0.05] hover:bg-white/[0.2] border border-white/10 rounded-full text-[10px] font-timer tracking-widest uppercase text-rose-300 backdrop-blur-md transition-all shadow-lg hover:scale-105">
+                                            <BookIcon size={14}/> Leer el diario
+                                        </button>
+                                        <button onClick={() => setVistaActual('portada')} className="flex items-center gap-2 px-5 py-2.5 bg-white/[0.05] hover:bg-white/[0.2] border border-white/10 rounded-full text-[10px] font-timer tracking-widest uppercase text-gray-400 backdrop-blur-md transition-all shadow-lg hover:scale-105">
+                                            <ArrowLeftIcon size={14}/> Ver Portada
+                                        </button>
+                                    </>
+                                )}
                             </div>
 
-                            {/* CABECERA (Luna y Título) */}
-                            <div className={`relative mb-8 flex flex-col items-center mt-8 md:mt-4 transition-all duration-500 ${showDiario ? 'scale-90 opacity-80' : 'scale-100'}`}>
-                                <div className="w-40 h-40 md:w-56 md:h-56 bg-neutral-100 rounded-full moon-glow flex flex-col items-center justify-center text-neutral-900 overflow-hidden border border-white/20">
-                                    <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')] opacity-10"></div>
-                                    <p className="text-[10px] md:text-xs font-bold tracking-widest text-rose-600 mb-1">AMÁNDOTE</p>
-                                    <div className="flex flex-col items-center space-y-1 font-timer">
-                                        <span className="text-2xl md:text-3xl font-bold">{timeElapsed.days}d</span>
-                                        <span className="text-xs md:text-sm font-medium tracking-tighter">
-                                        {String(timeElapsed.hours).padStart(2, '0')}h : {String(timeElapsed.mins).padStart(2, '0')}m : {String(timeElapsed.secs).padStart(2, '0')}s
-                                        </span>
-                                    </div>
-                                    <p className="text-[8px] md:text-[10px] mt-2 opacity-60">Desde Dic 17, 2025</p>
-                                </div>
-                            </div>
+                            <h1 className={`text-7xl md:text-[10rem] font-name text-rose-100 mb-6 mt-10 drop-shadow-[0_0_20px_rgba(244,63,94,0.6)] animate-text-glow text-center transition-all duration-500 ${vistaActual === 'principal' ? 'block' : 'hidden'}`}>Soyin</h1>
 
-                            <h1 className={`text-8xl md:text-[10rem] font-name text-rose-100 mb-6 drop-shadow-[0_0_20px_rgba(244,63,94,0.6)] leading-none text-center transition-all duration-500 ${showDiario ? 'hidden' : 'block'}`}>
-                                Soyin
-                            </h1>
-
-                            {/* ============================================
-                                VISTA 2A: EL DIARIO DE ENTRADAS
-                                ============================================ */}
-                            {showDiario ? (
-                                <div className="w-full max-w-2xl bg-white/[0.02] backdrop-blur-xl border border-white/10 rounded-[3rem] p-6 md:p-12 shadow-2xl relative animate-in mx-auto mt-4">
-                                    <h2 className="font-name text-4xl text-rose-300 text-center mb-2">Nuestro Diario</h2>
-                                    <p className="text-center text-rose-200/50 text-xs font-timer tracking-widest uppercase mb-10">Donde guardo lo que siento</p>
-                                    
-                                    <div className="relative border-l-2 border-rose-900/40 ml-2 md:ml-4 space-y-12 pb-6">
-                                        {/* Invertimos el array para que el más nuevo salga primero */}
-                                        {[...entradasDiario].reverse().map((entrada, idx) => (
-                                            <div key={idx} className="relative pl-6 md:pl-8">
-                                                {/* Punto en la línea de tiempo */}
-                                                <div className="absolute -left-[9px] top-1 w-4 h-4 rounded-full bg-rose-600 ring-4 ring-[#020205]"></div>
-                                                
-                                                <p className="text-rose-400 text-[10px] md:text-xs font-timer tracking-widest uppercase mb-3">
-                                                    {formatearFecha(entrada.fecha)}
-                                                </p>
-                                                
-                                                <div className="bg-white/[0.03] border border-white/[0.05] p-5 rounded-2xl text-rose-50/90 font-body text-sm md:text-base leading-relaxed whitespace-pre-wrap hover:bg-white/[0.06] transition-colors">
-                                                    {entrada.texto}
-                                                </div>
-                                            </div>
-                                        ))}
-                                    </div>
-                                </div>
-                            ) : (
-                            /* ============================================
-                                VISTA 2B: LOS LATIDOS ALEATORIOS (Original)
-                                ============================================ */
-                                <div className="w-full max-w-2xl bg-white/[0.02] backdrop-blur-xl border border-white/10 rounded-[3.5rem] p-8 md:p-16 shadow-2xl relative text-center mx-auto animate-in">
-                                    
-                                    <div className="mb-10 flex justify-center">
-                                        <div className="heart-beat">
-                                            <HeartIcon size={80} className="text-rose-500 transition-all duration-500" fill="currentColor" />
-                                        </div>
-                                    </div>
-
-                                    <div key={msgIndex} className="animate-in">
-                                        <p className="text-rose-400/40 text-[10px] font-bold tracking-[0.6em] mb-6 uppercase">Un latido para ti</p>
-                                        <p className="text-2xl md:text-4xl font-body font-light leading-relaxed text-rose-50/90 tracking-wide">
-                                            "{thoughts[msgIndex].texto}"
-                                        </p>
-                                        <p className="text-[9px] md:text-[10px] font-timer text-rose-300/40 mt-6 tracking-widest uppercase">
-                                            Guardado el: {formatearFecha(thoughts[msgIndex].fecha)}
-                                        </p>
-                                    </div>
-
-                                    {/* Efecto de partículas al cambiar latido */}
-                                    <div key={`effect-${clickEffect}`} className="pointer-events-none absolute inset-0 flex items-center justify-center overflow-hidden rounded-[3.5rem] z-0">
-                                        {clickEffect > 0 && Array.from({ length: 12 }).map((_, i) => {
-                                            const isHeart = i % 2 === 0;
-                                            return isHeart ? (
-                                                <HeartIcon
-                                                    key={i}
-                                                    size={16 + Math.random() * 24}
-                                                    className="absolute animate-float-up text-rose-500"
-                                                    style={{
-                                                        left: `${20 + Math.random() * 60}%`,
-                                                        top: '70%',
-                                                        animationDuration: `${0.8 + Math.random() * 0.7}s`,
-                                                        animationDelay: `${Math.random() * 0.2}s`,
-                                                        opacity: 0,
-                                                    }}
-                                                    fill="currentColor"
-                                                />
-                                            ) : (
-                                                <SparklesIcon
-                                                    key={i}
-                                                    size={12 + Math.random() * 16}
-                                                    className="absolute animate-float-up text-amber-300"
-                                                    style={{
-                                                        left: `${20 + Math.random() * 60}%`,
-                                                        top: '70%',
-                                                        animationDuration: `${0.8 + Math.random() * 0.7}s`,
-                                                        animationDelay: `${Math.random() * 0.2}s`,
-                                                        opacity: 0,
-                                                    }}
-                                                />
+                            {/* VISTA 1: DIARIO COMPARTIDO */}
+                            {vistaActual === 'diario' && (
+                                <div className="w-full max-w-2xl bg-white/[0.02] backdrop-blur-xl border border-white/10 rounded-[3rem] p-6 md:p-12 shadow-[0_0_50px_rgba(0,0,0,0.5)] animate-in mx-auto mt-16">
+                                    <h2 className="font-name text-4xl text-rose-300 text-center mb-10">Nuestro Diario</h2>
+                                    <div className="relative border-l-2 border-white/10 ml-2 md:ml-4 space-y-12 pb-6">
+                                        {diario.map((entrada) => {
+                                            const esDeSoyin = entrada.autor === 'soyin';
+                                            return (
+                                                <ContenedorMagico key={entrada.id} color={esDeSoyin ? "text-purple-400" : "text-rose-500"}>
+                                                    <div className="relative pl-6 md:pl-8 w-full">
+                                                        <div className={`absolute -left-[9px] top-1 w-4 h-4 rounded-full ring-4 ring-[#020205] ${esDeSoyin ? 'bg-purple-500 shadow-[0_0_10px_rgba(168,85,247,0.8)]' : 'bg-rose-600 shadow-[0_0_10px_rgba(225,29,72,0.8)]'}`}></div>
+                                                        <p className={`text-[10px] font-timer tracking-widest uppercase mb-1 flex items-center gap-2 ${esDeSoyin ? 'text-purple-400' : 'text-rose-400'}`}>
+                                                            {formatearFechaSimple(entrada.fecha)} 
+                                                            <span className="text-[8px] opacity-60 bg-white/10 px-2 py-[2px] rounded-full font-sans tracking-normal">{esDeSoyin ? 'Escrito por Flor' : 'Escrito por Anthony'}</span>
+                                                        </p>
+                                                        <p className="text-[8px] text-gray-500 mb-3 uppercase tracking-widest">{formatearFechaHoraBaseDatos(entrada.timestamp)}</p>
+                                                        <div className={`bg-black/20 border p-5 mt-3 rounded-2xl font-body text-sm md:text-base leading-relaxed whitespace-pre-wrap shadow-lg ${esDeSoyin ? 'border-purple-500/20 text-purple-50' : 'border-rose-500/20 text-rose-50/90'}`}>
+                                                            {entrada.texto}
+                                                        </div>
+                                                    </div>
+                                                </ContenedorMagico>
                                             );
                                         })}
+                                        {diario.length === 0 && <p className="text-center text-white/40 italic">Aún no hay historias escritas.</p>}
                                     </div>
-
-                                    <button 
-                                        onClick={nextMessage}
-                                        className="mt-12 flex items-center space-x-3 mx-auto text-rose-400/60 hover:text-rose-200 transition-all group px-6 py-2 rounded-full border border-rose-900/20 bg-rose-900/5 relative overflow-hidden z-10"
-                                    >
-                                        <span className="text-[10px] uppercase tracking-[0.4em] font-bold">Ver otro latido</span>
-                                        <ChevronRightIcon size={16} className="group-hover:translate-x-1 transition-transform" />
-                                    </button>
                                 </div>
                             )}
 
-                            {/* REPRODUCTOR DE MÚSICA (Siempre visible abajo) */}
-                            <div className="mt-10 flex flex-col items-center pb-8 z-20">
-                                <button 
-                                    onClick={toggleMusic}
-                                    className={`w-16 h-16 rounded-full flex items-center justify-center transition-all border-2 ${isPlaying ? 'bg-rose-600/20 border-rose-500 scale-110 shadow-[0_0_30px_rgba(244,63,94,0.3)]' : 'bg-transparent border-rose-500/30 hover:border-rose-400'}`}
-                                >
-                                    {isPlaying ? <PauseIcon size={28} /> : <PlayIcon size={28} className="ml-1" />}
+                            {/* VISTA 2: HISTORIAL EXPANDIDO DE ANTHONY (LATIDOS) */}
+                            {vistaActual === 'historial_anthony' && (
+                                <div className="w-full max-w-2xl bg-white/[0.02] backdrop-blur-xl border border-rose-900/30 rounded-[3rem] p-6 md:p-12 shadow-[0_0_50px_rgba(225,29,72,0.1)] animate-in mx-auto mt-16">
+                                    <h2 className="font-name text-4xl text-rose-300 text-center mb-10 flex items-center justify-center gap-3"><HeartIcon size={28} className="text-rose-500 heart-beat" fill="currentColor"/> Historial de Latidos de Anthony</h2>
+                                    <div className="relative border-l-2 border-rose-900/30 ml-2 md:ml-4 space-y-12 pb-6">
+                                        {latidos.length === 0 && <p className="text-center text-white/40 italic">Aún no hay latidos guardados.</p>}
+                                        {latidos.map((l) => (
+                                            <ContenedorMagico key={l.id} color="text-rose-500">
+                                                <div className="relative pl-6 md:pl-8 w-full">
+                                                    <div className="absolute -left-[9px] top-1 w-4 h-4 rounded-full bg-rose-600 ring-4 ring-[#020205] shadow-[0_0_10px_rgba(225,29,72,0.8)]"></div>
+                                                    <p className="text-[10px] font-timer tracking-widest uppercase mb-1 text-rose-400">
+                                                        {formatearFechaHora(l.fecha, l.hora)}
+                                                    </p>
+                                                    <div className="bg-black/30 border border-rose-500/20 p-5 mt-3 rounded-2xl font-body text-sm md:text-base leading-relaxed whitespace-pre-wrap shadow-lg text-rose-100">
+                                                        "{l.texto}"
+                                                    </div>
+                                                </div>
+                                            </ContenedorMagico>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* VISTA 3: HISTORIAL EXPANDIDO DE SOYIN */}
+                            {vistaActual === 'historial_soyin' && (
+                                <div className="w-full max-w-2xl bg-purple-900/10 backdrop-blur-xl border border-purple-500/30 rounded-[3rem] p-6 md:p-12 shadow-[0_0_50px_rgba(168,85,247,0.15)] animate-in mx-auto mt-16">
+                                    <h2 className="font-name text-4xl text-purple-300 text-center mb-10 flex items-center justify-center gap-3"><HeartIcon size={28} className="text-purple-500 heart-beat" fill="currentColor"/> Historial de Latidos de Soyin</h2>
+                                    <div className="relative border-l-2 border-purple-500/30 ml-2 md:ml-4 space-y-12 pb-6">
+                                        {mensajesSoyin.length === 0 && <p className="text-center text-white/40 italic">Aún no hay latidos guardados.</p>}
+                                        {mensajesSoyin.map((msg) => (
+                                            <ContenedorMagico key={msg.id} color="text-purple-400">
+                                                <div className="relative pl-6 md:pl-8 w-full">
+                                                    <div className="absolute -left-[9px] top-1 w-4 h-4 rounded-full bg-purple-500 ring-4 ring-[#020205] shadow-[0_0_10px_rgba(168,85,247,0.8)]"></div>
+                                                    <p className="text-[10px] font-timer tracking-widest uppercase mb-1 text-purple-400">
+                                                        {formatearFechaHora(msg.fecha, msg.hora)}
+                                                    </p>
+                                                    <div className="bg-black/30 border border-purple-500/20 p-5 mt-3 rounded-2xl font-body text-sm md:text-base leading-relaxed whitespace-pre-wrap shadow-lg text-purple-100 italic">
+                                                        "{msg.texto}"
+                                                    </div>
+                                                </div>
+                                            </ContenedorMagico>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* VISTA 4: PANTALLA PRINCIPAL (HOY) */}
+                            {vistaActual === 'principal' && (
+                                <div className="w-full max-w-2xl mx-auto flex flex-col items-center gap-8 relative z-10">
+                                    
+                                    {/* SECCIÓN LATIDOS (ANTHONY - SOLO HOY) */}
+                                    <div className="bg-white/[0.02] backdrop-blur-xl border border-white/10 rounded-[3.5rem] p-8 md:p-12 shadow-2xl text-center animate-in relative w-full">
+                                        <div className="absolute top-0 right-0 m-4">
+                                            <button onClick={() => setVistaActual('historial_anthony')} className="flex items-center gap-1.5 text-[9px] uppercase tracking-[0.2em] text-rose-300/60 hover:text-rose-300 transition-colors bg-white/5 hover:bg-white/10 px-4 py-2 rounded-full shadow-lg">
+                                                <ListIcon size={12} /> Ver historial de latidos de Anthony
+                                            </button>
+                                        </div>
+                                        
+                                        <div className="mb-8 flex justify-center mt-6 heart-beat"><HeartIcon size={80} className="text-rose-500" fill="currentColor" /></div>
+                                        <p className="text-rose-400/40 text-[10px] font-bold tracking-[0.6em] mb-4 uppercase">De mí para ti, cariño</p>
+                                        
+                                        {latidosHoy.length > 0 ? (
+                                            <ContenedorMagico color="text-rose-500">
+                                                <div className="min-h-[100px] flex flex-col justify-center">
+                                                    <p className="text-2xl md:text-3xl font-body font-light text-rose-50/90 tracking-wide leading-relaxed">"{latidosHoy[idxLatidoHoy]?.texto}"</p>
+                                                    <div className="flex flex-col items-center mt-6 gap-1 border-t border-white/5 pt-4">
+                                                        <p className="text-[8px] font-timer text-rose-300/30 tracking-widest uppercase">A las {latidosHoy[idxLatidoHoy]?.hora}</p>
+                                                    </div>
+                                                </div>
+                                            </ContenedorMagico>
+                                        ) : (
+                                            <p className="text-white/30 italic font-body text-sm min-h-[100px] flex items-center justify-center bg-black/20 rounded-2xl mt-4 border border-white/5">Esperando un latido para el día de hoy...</p>
+                                        )}
+
+                                        {latidosHoy.length > 1 && (
+                                            <button onClick={() => setIdxLatidoHoy((idxLatidoHoy + 1) % latidosHoy.length)} className="mt-8 mx-auto text-rose-300 hover:text-white border border-rose-600/40 bg-rose-600/20 px-6 py-2 rounded-full text-[10px] uppercase tracking-[0.2em] font-bold transition-colors flex items-center gap-2">Ver otro latido de hoy <ArrowLeftIcon size={12} className="rotate-180"/></button>
+                                        )}
+                                    </div>
+
+                                    {/* LA LUNA MÁGICA CONECTORA */}
+                                    <div className="relative flex flex-col items-center my-6">
+                                        <div className="absolute h-full w-[2px] bg-gradient-to-b from-rose-500/30 via-white/10 to-purple-500/30 -z-10"></div>
+                                        <div className="w-44 h-44 md:w-56 md:h-56 bg-neutral-100 rounded-full moon-glow flex flex-col items-center justify-center text-neutral-900 overflow-hidden border border-white/20 z-10 shadow-[0_0_60px_rgba(255,255,255,0.15)] relative">
+                                            <div className="absolute inset-0 opacity-5 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-black to-transparent"></div>
+                                            
+                                            <div className="flex items-center gap-3 mb-3">
+                                                <HeartIcon size={16} className="text-rose-500 heart-beat" fill="currentColor"/>
+                                                <HeartIcon size={16} className="text-purple-500 heart-beat" fill="currentColor" style={{animationDelay: "0.4s"}}/>
+                                            </div>
+                                            <p className="text-[11px] font-bold tracking-widest text-gray-800 mb-1 z-10">AMÁNDOTE</p>
+                                            <div className="flex flex-col items-center font-timer z-10">
+                                                <span className="text-3xl md:text-4xl font-bold">{timeElapsed.days}d</span>
+                                                <span className="text-xs md:text-sm font-medium">{String(timeElapsed.hours).padStart(2,'0')}h : {String(timeElapsed.mins).padStart(2,'0')}m : {String(timeElapsed.secs).padStart(2,'0')}s</span>
+                                            </div>
+                                            <p className="text-[8px] md:text-[9px] mt-3 opacity-70 font-bold z-10">Desde {formatearFechaSimple(fechaInicioRelacion)}</p>
+                                        </div>
+                                    </div>
+
+                                    {/* SECCIÓN SOYIN (SOLO HOY) */}
+                                    <div className="bg-purple-900/10 border border-purple-500/20 rounded-[3.5rem] p-8 md:p-12 shadow-[0_0_40px_rgba(147,51,234,0.1)] text-center animate-in backdrop-blur-sm relative w-full">
+                                        <div className="absolute top-0 right-0 m-4">
+                                            <button onClick={() => setVistaActual('historial_soyin')} className="flex items-center gap-1.5 text-[9px] uppercase tracking-[0.2em] text-purple-300/60 hover:text-purple-300 transition-colors bg-white/5 hover:bg-white/10 px-4 py-2 rounded-full shadow-lg">
+                                                <ListIcon size={12} /> Ver historial de latidos de Soyin
+                                            </button>
+                                        </div>
+                                        
+                                        <div className="mb-8 flex justify-center mt-6 heart-beat"><HeartIcon size={80} className="text-purple-500" fill="currentColor" /></div>
+                                        <p className="text-purple-300/60 text-[10px] font-bold tracking-[0.5em] mb-4 uppercase flex items-center justify-center gap-2">
+                                            <SparklesIcon size={14} className="text-purple-400" /> Un latido de Soyin para ti <SparklesIcon size={14} className="text-purple-400" />
+                                        </p>
+
+                                        {mensajesSoyinHoy.length > 0 ? (
+                                            <ContenedorMagico color="text-purple-400">
+                                                <div className="min-h-[100px] flex flex-col justify-center">
+                                                    <div className="text-center bg-black/20 p-5 rounded-3xl border border-purple-500/20 shadow-[inset_0_0_20px_rgba(147,51,234,0.1)]">
+                                                        <p className="font-body text-purple-100/90 italic text-xl md:text-2xl leading-relaxed">"{mensajesSoyinHoy[idxSoyinHoy]?.texto}"</p>
+                                                        <p className="text-[8px] text-purple-300/40 mt-5 font-timer tracking-widest uppercase border-t border-purple-500/20 pt-3">A las {mensajesSoyinHoy[idxSoyinHoy]?.hora}</p>
+                                                    </div>
+                                                </div>
+                                            </ContenedorMagico>
+                                        ) : (
+                                            <p className="text-white/30 italic font-body text-sm min-h-[100px] flex items-center justify-center bg-black/20 rounded-2xl mt-4 border border-purple-500/10">Esperando el latido de Flor de hoy...</p>
+                                        )}
+
+                                        {mensajesSoyinHoy.length > 1 && (
+                                            <button onClick={() => setIdxSoyinHoy((idxSoyinHoy + 1) % mensajesSoyinHoy.length)} className="mt-8 mx-auto text-purple-300 hover:text-white border border-purple-600/40 bg-purple-600/20 px-6 py-2 rounded-full text-[10px] uppercase tracking-[0.2em] font-bold transition-colors flex items-center gap-2">Ver otro latido de hoy <ArrowLeftIcon size={12} className="rotate-180"/></button>
+                                        )}
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* REPRODUCTOR */}
+                            <div className="mt-14 flex flex-col items-center pb-8 z-20">
+                                <button onClick={toggleMusic} className={`w-20 h-20 rounded-full flex items-center justify-center transition-all border-2 ${isPlaying ? 'bg-rose-600/20 border-rose-500 scale-110 shadow-[0_0_30px_rgba(244,63,94,0.4)]' : 'bg-black/50 border-white/20 hover:border-rose-400 hover:bg-rose-900/20'}`}>
+                                    {isPlaying ? <PauseIcon size={32} className="text-white"/> : <PlayIcon size={32} className="ml-1 text-white" />}
                                 </button>
-                                <p className="mt-4 text-[10px] uppercase tracking-[0.5em] text-rose-400/60 font-bold text-center">
-                                    {isPlaying ? "Nuestra melodía suena..." : "Dale vida a mi rincón"}
+                                <p className="mt-5 text-[9px] uppercase tracking-[0.6em] text-white/40 font-bold bg-black/30 px-4 py-1.5 rounded-full border border-white/5">
+                                    {isPlaying ? "Nuestra melodía suena..." : "Dale play"}
                                 </p>
                             </div>
 
-                            <footer className="mt-8 mb-16 text-center opacity-30 group hover:opacity-100 transition-opacity z-20">
-                                <p className="font-body text-xs italic tracking-widest mb-2">
-                                    "En este infinito, tú eres mi estrella más brillante"
-                                </p>
-                                <p className="text-[10px] font-bold uppercase tracking-[0.8em]">Anthony</p>
+                            <footer className="mt-8 mb-16 text-center z-20 flex flex-col items-center gap-4">
+                                <p className="font-body text-xs italic tracking-widest text-white/30">"En este infinito, tú eres mi estrella más brillante"</p>
+                                <div className="flex gap-4 opacity-40 hover:opacity-100 transition-opacity bg-black/40 px-6 py-2.5 rounded-full border border-white/10 backdrop-blur-md">
+                                    <button onClick={() => abrirPanelLogin('anthony')} className="text-[10px] font-bold uppercase tracking-[0.3em] text-rose-400 hover:text-rose-300 transition-colors cursor-pointer">Anthony</button>
+                                    <span className="text-white/20">|</span>
+                                    <button onClick={() => abrirPanelLogin('soyin')} className="text-[10px] font-bold uppercase tracking-[0.3em] text-purple-400 hover:text-purple-300 transition-colors cursor-pointer">Soyin</button>
+                                </div>
                             </footer>
 
-                            <audio ref={audioRef} src={musicUrl} loop />
+                            {musicUrl && <audio ref={audioRef} src={musicUrl} loop />}
                         </div>
                     )}
                 </div>
