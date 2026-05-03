@@ -618,8 +618,8 @@
                 alert("Mensaje de entrada actualizado y guardado en tu historia");
             };
 
-            // COMPONENTE: SELECTOR DE FECHA (DOBLE BOTÓN)
-            const DateSelector = ({ isCustom, setIsCustom, fecha, setFecha, hora, setHora, colorTheme = "rose" }) => {
+            // COMPONENTE INYECTADO: SELECTOR DE FECHA (DOBLE BOTÓN)
+            const renderDateSelector = (isCustom, setIsCustom, fecha, setFecha, hora, setHora, colorTheme = "rose") => {
                 const btnColor = colorTheme === "purple" ? "bg-purple-600/50 border-purple-500" : "bg-rose-600/50 border-rose-500";
                 const focusColor = colorTheme === "purple" ? "focus:border-purple-500" : "focus:border-rose-500";
 
@@ -651,9 +651,9 @@
             })));
 
             // ==========================================
-            // MODAL GLOBAL DE EDICIÓN
+            // MODAL GLOBAL DE EDICIÓN (INYECTADO)
             // ==========================================
-            const EditModalComponent = () => {
+            const renderEditModal = () => {
                 if (!editModal.show) return null;
                 const isSoyinModal = user?.email === CORREO_SOYIN;
 
@@ -677,9 +677,9 @@
             };
 
             // ==========================================
-            // MODAL DE ALARMA DE RUTINA
+            // MODAL DE ALARMA DE RUTINA (INYECTADO)
             // ==========================================
-            const RutinaAlarmaModal = () => {
+            const renderRutinaAlarmaModal = () => {
                 if (!rutinaActivaModal) return null;
                 return (
                     <div className="fixed inset-0 bg-black/80 z-[200] flex items-center justify-center p-4 backdrop-blur-xl animate-in">
@@ -740,6 +740,7 @@
                 if (isAnthony) {
                     return (
                         <div className="min-h-screen p-4 md:p-8 font-body bg-[#020205] relative z-50">
+                            {renderEditModal()}
                             <div className="max-w-6xl mx-auto glass-panel p-6 md:p-8 rounded-3xl animate-in">
                                 <div className="flex flex-wrap justify-between items-center mb-6 gap-4 border-b border-white/10 pb-6">
                                     <h2 className="font-name text-4xl text-rose-300">Panel Máster</h2>
@@ -784,7 +785,7 @@
                                                 <form onSubmit={guardarBienvenidaAnthony} className="bg-black/20 p-5 rounded-2xl border border-white/5 flex flex-col gap-3 shadow-lg">
                                                     <h3 className="text-rose-400 font-bold text-[10px] uppercase tracking-[0.2em]">Tu carta en la Entrada principal</h3>
                                                     <textarea required placeholder="Ej: Mi amada Flor Soyin. Eres la dueña de mis latidos..." className="p-3 bg-black/30 border border-white/10 rounded-xl text-sm outline-none focus:border-rose-500" value={formBienvenidaAnthony} onChange={e=>setFormBienvenidaAnthony(e.target.value)} rows="3"></textarea>
-                                                    <DateSelector isCustom={customCartaAnth} setIsCustom={setCustomCartaAnth} fecha={fechaCartaAnth} setFecha={setFechaCartaAnth} hora={horaCartaAnth} setHora={setHoraCartaAnth} colorTheme="rose" />
+                                                    {renderDateSelector(customCartaAnth, setCustomCartaAnth, fechaCartaAnth, setFechaCartaAnth, horaCartaAnth, setHoraCartaAnth, "rose")}
                                                     <button type="submit" className="bg-rose-900/50 hover:bg-rose-800 text-rose-200 p-2 rounded-lg text-[10px] uppercase tracking-widest transition-colors mt-1 border border-rose-500/30">Actualizar Carta</button>
                                                 </form>
 
@@ -797,7 +798,7 @@
                                                         <option value="diario">Entrada del Diario (Historia Larga)</option>
                                                     </select>
                                                     <textarea required placeholder="Escribe aquí tu pensamiento..." className="p-4 bg-black/30 border border-white/10 rounded-xl h-24 outline-none focus:border-rose-500 text-sm" value={nuevoTexto} onChange={e => setNuevoTexto(e.target.value)}></textarea>
-                                                    <DateSelector isCustom={customDateAnth} setIsCustom={setCustomDateAnth} fecha={nuevaFecha} setFecha={setNuevaFecha} hora={nuevaHora} setHora={setNuevaHora} colorTheme="rose" />
+                                                    {renderDateSelector(customDateAnth, setCustomDateAnth, nuevaFecha, setNuevaFecha, nuevaHora, setNuevaHora, "rose")}
                                                     <button type="submit" className="bg-rose-600 hover:bg-rose-700 text-white p-3 rounded-xl text-xs uppercase tracking-widest font-bold transition-colors shadow-[0_0_15px_rgba(225,29,72,0.3)] mt-2">Publicar Mágicamente</button>
                                                 </form>
                                             </>
@@ -846,11 +847,11 @@
                                         
                                         {adminTabAnth === 'publicar' && (
                                             <div className="animate-in">
-                                                <h3 className="text-rose-400 font-bold text-xs mb-4 uppercase tracking-widest flex items-center gap-2"><ListIcon size={16}/> Tus Memorias Escritas</h3>
+                                                <h3 className="text-rose-400 font-bold text-xs mb-4 uppercase tracking-widest flex items-center gap-2"><ListIcon size={16}/> Tus Memorias de Hoy</h3>
                                                 
-                                                <p className="text-gray-400 text-[10px] uppercase tracking-widest mb-3 border-b border-white/10 pb-2 mt-4 text-center">Tus Entradas en el Diario</p>
-                                                {diarioOrdenado.filter(d => d.autor !== 'soyin').map(d => (
-                                                    <div key={d.id} className="p-4 bg-white/5 mb-3 rounded-xl border border-white/10 flex flex-col group hover:bg-white/10 transition-colors">
+                                                <p className="text-gray-400 text-[10px] uppercase tracking-widest mb-3 border-b border-white/10 pb-2 mt-4 text-center">En el Diario (Hoy)</p>
+                                                {diarioOrdenado.filter(d => d.autor !== 'soyin' && d.fecha === hoyStr).map(d => (
+                                                    <div key={d.id} className="p-4 bg-white/5 mb-3 rounded-xl border border-white/10 flex flex-col group hover:bg-white/10 transition-colors relative">
                                                         <div className="flex justify-between items-center w-full">
                                                             <div className="truncate w-3/4 text-sm text-rose-100">{d.texto}</div>
                                                             <div className="flex gap-2 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity bg-black/50 p-1 rounded-lg">
@@ -861,10 +862,11 @@
                                                         <span className="text-[9px] text-gray-500 mt-2 tracking-widest uppercase">{formatearFechaHora(d.fecha, d.hora)}</span>
                                                     </div>
                                                 ))}
+                                                {diarioOrdenado.filter(d => d.autor !== 'soyin' && d.fecha === hoyStr).length === 0 && <p className="text-center text-gray-500 text-xs italic">Nada escrito hoy.</p>}
 
-                                                <p className="text-gray-400 text-[10px] uppercase tracking-widest mt-8 mb-3 border-b border-white/10 pb-2 text-center">Todos Tus Latidos Cortos</p>
-                                                {latidosOrdenados.map(l => (
-                                                    <div key={l.id} className="p-4 bg-white/5 mb-3 rounded-xl border border-white/10 flex flex-col group hover:bg-white/10 transition-colors">
+                                                <p className="text-gray-400 text-[10px] uppercase tracking-widest mt-8 mb-3 border-b border-white/10 pb-2 text-center">Tus Latidos Cortos (Hoy)</p>
+                                                {latidosOrdenados.filter(l => l.fecha === hoyStr).map(l => (
+                                                    <div key={l.id} className="p-4 bg-white/5 mb-3 rounded-xl border border-white/10 flex flex-col group hover:bg-white/10 transition-colors relative">
                                                         <div className="flex justify-between items-center w-full">
                                                             <div className="truncate w-3/4 text-sm text-rose-100">{l.texto}</div>
                                                             <div className="flex gap-2 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity bg-black/50 p-1 rounded-lg">
@@ -875,6 +877,12 @@
                                                         <span className="text-[9px] text-gray-500 mt-2 tracking-widest uppercase">{formatearFechaHora(l.fecha, l.hora)}</span>
                                                     </div>
                                                 ))}
+                                                {latidosOrdenados.filter(l => l.fecha === hoyStr).length === 0 && <p className="text-center text-gray-500 text-xs italic">Ningún latido hoy.</p>}
+                                                
+                                                <div className="mt-8 flex flex-col gap-3">
+                                                    <button onClick={() => {setShowLogin(false); setVistaActual('historial_anthony');}} className="bg-white/5 hover:bg-white/10 text-rose-300 p-3 rounded-xl text-xs uppercase tracking-widest font-bold transition-all border border-rose-500/20 shadow-lg">Ver todo mi historial de latidos</button>
+                                                    <button onClick={() => {setShowLogin(false); setVistaActual('diario');}} className="bg-white/5 hover:bg-white/10 text-rose-300 p-3 rounded-xl text-xs uppercase tracking-widest font-bold transition-all border border-rose-500/20 shadow-lg">Ir a nuestro Diario Compartido</button>
+                                                </div>
                                             </div>
                                         )}
 
@@ -884,7 +892,7 @@
                                                 {eventosOrdenados.length === 0 && <p className="text-gray-500 italic text-sm text-center mt-10">No hay fechas importantes anotadas.</p>}
                                                 {eventosOrdenados.map(ev => (
                                                     <div key={ev.id} className={`p-5 mb-3 rounded-xl border ${ev.isDefault ? 'bg-fuchsia-900/10 border-fuchsia-500/30' : 'bg-black/30 border-yellow-500/20'} flex flex-col group relative`}>
-                                                        {!ev.isDefault && <button onClick={()=>eliminarDocumento('calendario', ev.id, "¿Borrar este evento?")} className="absolute top-4 right-4 text-gray-500 hover:text-red-500 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity p-2"><TrashIcon size={16}/></button>}
+                                                        {!ev.isDefault && <button onClick={()=>eliminarDocumento('calendario', ev.id, "¿Borrar este evento?")} className="absolute top-4 right-4 text-gray-500 hover:text-red-500 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity p-2 z-20"><TrashIcon size={16}/></button>}
                                                         <h4 className={`font-name text-2xl mb-1 ${ev.isDefault ? 'text-fuchsia-300' : 'text-yellow-300'}`}>{ev.titulo}</h4>
                                                         
                                                         <div className="flex flex-col gap-1 mb-3">
@@ -928,13 +936,6 @@
                                                 ))}
                                             </div>
                                         )}
-
-                                        {adminTabAnth === 'ajustes' && (
-                                            <div className="animate-in text-center flex flex-col items-center justify-center h-full opacity-30">
-                                                <h3 className="text-gray-400 font-bold text-xl uppercase tracking-widest mb-4">Ajustes Base</h3>
-                                                <p className="text-sm">Configuraciones aplicadas para el Rincón.</p>
-                                            </div>
-                                        )}
                                     </div>
                                 </div>
                             </div>
@@ -946,6 +947,7 @@
                 if (isSoyin) {
                     return (
                         <div className="min-h-screen p-4 md:p-8 font-body bg-[#020205] relative z-50">
+                            {renderEditModal()}
                             <div className="max-w-6xl mx-auto glass-panel p-6 md:p-10 rounded-3xl animate-in relative border border-purple-500/30">
                                 <div className="flex flex-wrap justify-between items-center mb-6 gap-4 border-b border-purple-500/20 pb-6">
                                     <div>
@@ -992,7 +994,7 @@
                                                 <form onSubmit={guardarBienvenidaSoyin} className="bg-purple-900/10 p-5 rounded-2xl border border-purple-500/20 flex flex-col gap-3 shadow-[0_0_20px_rgba(147,51,234,0.05)]">
                                                     <h3 className="text-purple-300 font-bold text-[10px] uppercase tracking-[0.2em]">Tus palabras en la Entrada principal</h3>
                                                     <textarea required placeholder="Ej: Mi príncipe Anthony, cada segundo a tu lado es magia..." className="p-3 bg-black/40 border border-purple-500/30 rounded-xl text-sm outline-none text-purple-100 focus:border-purple-400" value={formBienvenidaSoyin} onChange={e=>setFormBienvenidaSoyin(e.target.value)} rows="3"></textarea>
-                                                    <DateSelector isCustom={customCartaSoyin} setIsCustom={setCustomCartaSoyin} fecha={fechaCartaSoyin} setFecha={setFechaCartaSoyin} hora={horaCartaSoyin} setHora={setHoraCartaSoyin} colorTheme="purple" />
+                                                    {renderDateSelector(customCartaSoyin, setCustomCartaSoyin, fechaCartaSoyin, setFechaCartaSoyin, horaCartaSoyin, setHoraCartaSoyin, "purple")}
                                                     <button type="submit" className="bg-purple-900/50 hover:bg-purple-800 text-purple-200 p-2 rounded-lg text-[10px] uppercase tracking-widest transition-colors mt-1 border border-purple-500/30">Actualizar Carta</button>
                                                 </form>
 
@@ -1001,7 +1003,7 @@
                                                         <span>Escribir en nuestro Diario</span>
                                                     </h3>
                                                     <textarea required placeholder="Cuenta una historia, un recuerdo, lo que sientes..." className="p-4 bg-black/40 border border-purple-500/30 rounded-xl h-20 outline-none focus:border-purple-400 text-purple-50 text-sm" value={nuevoDiarioSoyin} onChange={e => setNuevoDiarioSoyin(e.target.value)}></textarea>
-                                                    <DateSelector isCustom={customDateSoyinDiario} setIsCustom={setCustomDateSoyinDiario} fecha={fechaDiarioSoyin} setFecha={setFechaDiarioSoyin} hora={horaDiarioSoyin} setHora={setHoraDiarioSoyin} colorTheme="purple" />
+                                                    {renderDateSelector(customDateSoyinDiario, setCustomDateSoyinDiario, fechaDiarioSoyin, setFechaDiarioSoyin, horaDiarioSoyin, setHoraDiarioSoyin, "purple")}
                                                     <button type="submit" className="bg-purple-600 hover:bg-purple-700 text-white p-3 rounded-xl text-xs uppercase tracking-widest font-bold shadow-[0_0_15px_rgba(147,51,234,0.3)] transition-colors mt-2">Guardar Mágicamente</button>
                                                 </form>
 
@@ -1010,7 +1012,7 @@
                                                         <span className="flex items-center gap-2"><SparklesIcon size={14}/> Un latido corto para él</span>
                                                     </h3>
                                                     <textarea required placeholder="De ti, para él..." className="p-4 bg-black/40 border border-purple-500/40 rounded-xl h-24 outline-none focus:border-purple-400 text-purple-50 text-sm shadow-[inset_0_0_20px_rgba(147,51,234,0.1)]" value={nuevoTextoSoyin} onChange={e => setNuevoTextoSoyin(e.target.value)}></textarea>
-                                                    <DateSelector isCustom={customDateSoyinLatido} setIsCustom={setCustomDateSoyinLatido} fecha={fechaMensajeSoyin} setFecha={setFechaMensajeSoyin} hora={horaMensajeSoyin} setHora={setHoraMensajeSoyin} colorTheme="purple" />
+                                                    {renderDateSelector(customDateSoyinLatido, setCustomDateSoyinLatido, fechaMensajeSoyin, setFechaMensajeSoyin, horaMensajeSoyin, setHoraMensajeSoyin, "purple")}
                                                     <button type="submit" className="bg-fuchsia-600 hover:bg-fuchsia-700 text-white p-3 rounded-xl text-xs uppercase tracking-[0.2em] font-bold shadow-[0_0_20px_rgba(192,38,211,0.5)] transition-colors transform hover:scale-[1.02] mt-2">Dejar Latido</button>
                                                 </form>
                                             </>
@@ -1038,15 +1040,15 @@
                                     </div>
 
                                     {/* COLUMNA DERECHA: HISTORIALES */}
-                                    <div className="bg-purple-900/5 p-6 rounded-2xl border border-purple-500/20 h-[800px] overflow-y-auto shadow-[0_0_20px_rgba(147,51,234,0.05)]">
+                                    <div className="bg-purple-900/5 p-6 rounded-2xl border border-purple-500/20 h-[800px] overflow-y-auto shadow-[0_0_20px_rgba(147,51,234,0.05)] relative">
                                         
                                         {adminTabSoyin === 'publicar' && (
                                             <div className="animate-in">
-                                                <h3 className="text-purple-300 font-bold text-xs mb-4 uppercase tracking-widest flex items-center gap-2"><ListIcon size={16}/> Tus Memorias Escritas</h3>
+                                                <h3 className="text-purple-300 font-bold text-xs mb-4 uppercase tracking-widest flex items-center gap-2"><ListIcon size={16}/> Tus Memorias de Hoy</h3>
                                                 
-                                                <p className="text-purple-400/60 text-[9px] uppercase tracking-widest mb-3 mt-4 text-center border-b border-purple-500/20 pb-2">En el Diario Compartido:</p>
-                                                {diarioOrdenado.filter(d => d.autor === 'soyin').map(d => (
-                                                    <div key={d.id} className="p-4 bg-purple-900/20 mb-3 rounded-xl border border-purple-500/20 flex flex-col group hover:bg-purple-900/40 transition-colors">
+                                                <p className="text-purple-400/60 text-[9px] uppercase tracking-widest mb-3 mt-4 text-center border-b border-purple-500/20 pb-2">En el Diario Compartido (Hoy):</p>
+                                                {diarioOrdenado.filter(d => d.autor === 'soyin' && d.fecha === hoyStr).map(d => (
+                                                    <div key={d.id} className="p-4 bg-purple-900/20 mb-3 rounded-xl border border-purple-500/20 flex flex-col group hover:bg-purple-900/40 transition-colors relative">
                                                         <div className="flex justify-between items-center w-full">
                                                             <div className="truncate w-3/4 text-sm text-purple-100">{d.texto}</div>
                                                             <div className="flex gap-2 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity bg-black/50 p-1 rounded-lg">
@@ -1057,10 +1059,11 @@
                                                         <span className="text-[9px] text-purple-300/60 mt-2 tracking-widest uppercase">{formatearFechaHora(d.fecha, d.hora)}</span>
                                                     </div>
                                                 ))}
+                                                {diarioOrdenado.filter(d => d.autor === 'soyin' && d.fecha === hoyStr).length === 0 && <p className="text-center text-gray-500 text-xs italic">Nada escrito hoy.</p>}
 
-                                                <p className="text-purple-400/60 text-[9px] uppercase tracking-widest mb-3 mt-8 text-center border-b border-purple-500/20 pb-2">Tus Latidos Cortos:</p>
-                                                {mensajesSoyinOrdenados.map(msg => (
-                                                    <div key={msg.id} className="p-4 bg-purple-900/20 mb-3 rounded-xl border border-purple-500/20 flex flex-col group hover:bg-purple-900/40 transition-colors">
+                                                <p className="text-purple-400/60 text-[9px] uppercase tracking-widest mb-3 mt-8 text-center border-b border-purple-500/20 pb-2">Tus Latidos Cortos (Hoy):</p>
+                                                {mensajesSoyinOrdenados.filter(msg => msg.fecha === hoyStr).map(msg => (
+                                                    <div key={msg.id} className="p-4 bg-purple-900/20 mb-3 rounded-xl border border-purple-500/20 flex flex-col group hover:bg-purple-900/40 transition-colors relative">
                                                         <div className="flex justify-between items-center w-full">
                                                             <div className="truncate w-3/4 text-sm text-purple-100">{msg.texto}</div>
                                                             <div className="flex gap-2 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity bg-black/50 p-1 rounded-lg">
@@ -1071,6 +1074,12 @@
                                                         <span className="text-[8px] text-purple-300/50 mt-2 tracking-widest uppercase">{formatearFechaHora(msg.fecha, msg.hora)}</span>
                                                     </div>
                                                 ))}
+                                                {mensajesSoyinOrdenados.filter(msg => msg.fecha === hoyStr).length === 0 && <p className="text-center text-gray-500 text-xs italic">Ningún latido hoy.</p>}
+                                                
+                                                <div className="mt-8 flex flex-col gap-3">
+                                                    <button onClick={() => {setShowLogin(false); setVistaActual('historial_soyin');}} className="bg-purple-900/20 hover:bg-purple-900/40 text-purple-300 p-3 rounded-xl text-xs uppercase tracking-widest font-bold transition-all border border-purple-500/30 shadow-lg">Ver todo mi historial de latidos</button>
+                                                    <button onClick={() => {setShowLogin(false); setVistaActual('diario');}} className="bg-purple-900/20 hover:bg-purple-900/40 text-purple-300 p-3 rounded-xl text-xs uppercase tracking-widest font-bold transition-all border border-purple-500/30 shadow-lg">Ir a nuestro Diario Compartido</button>
+                                                </div>
                                             </div>
                                         )}
 
@@ -1080,7 +1089,7 @@
                                                 {eventosOrdenados.length === 0 && <p className="text-purple-300/50 italic text-sm text-center mt-10">No hay fechas importantes anotadas.</p>}
                                                 {eventosOrdenados.map(ev => (
                                                     <div key={ev.id} className={`p-5 mb-3 rounded-xl border ${ev.isDefault ? 'bg-fuchsia-900/10 border-fuchsia-500/40' : 'bg-purple-900/20 border-yellow-500/30'} flex flex-col group relative`}>
-                                                        {!ev.isDefault && <button onClick={()=>eliminarDocumento('calendario', ev.id, "¿Borrar este evento?")} className="absolute top-4 right-4 text-purple-400 hover:text-red-400 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity p-2"><TrashIcon size={16}/></button>}
+                                                        {!ev.isDefault && <button onClick={()=>eliminarDocumento('calendario', ev.id, "¿Borrar este evento?")} className="absolute top-4 right-4 text-purple-400 hover:text-red-400 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity p-2 z-20"><TrashIcon size={16}/></button>}
                                                         <h4 className={`font-name text-2xl mb-1 ${ev.isDefault ? 'text-fuchsia-300' : 'text-yellow-300'}`}>{ev.titulo}</h4>
                                                         
                                                         <div className="flex flex-col gap-1 mb-3">
@@ -1137,8 +1146,8 @@
             // ==========================================
             return (
                 <div className="min-h-screen flex flex-col items-center justify-center relative w-full overflow-x-hidden">
-                    <EditModalComponent />
-                    <RutinaAlarmaModal />
+                    {renderEditModal()}
+                    {renderRutinaAlarmaModal()}
 
                     {/* Alarma de Audio oculta */}
                     <audio ref={alarmAudioRef} src={alarmUrl || "https://actions.google.com/sounds/v1/alarms/digital_watch_alarm_long.ogg"} loop />
@@ -1249,9 +1258,10 @@
                                     <div className="relative border-l-2 border-white/10 ml-2 md:ml-4 space-y-12 pb-6">
                                         {diarioOrdenado.map((entrada) => {
                                             const esDeSoyin = entrada.autor === 'soyin';
+                                            const canEdit = (esDeSoyin && isSoyin) || (!esDeSoyin && isAnthony);
                                             return (
                                                 <ContenedorMagico key={entrada.id} color={esDeSoyin ? "text-purple-400" : "text-rose-500"}>
-                                                    <div className="relative pl-6 md:pl-8 w-full">
+                                                    <div className="relative pl-6 md:pl-8 w-full group">
                                                         <div className={`absolute -left-[9px] top-1 w-4 h-4 rounded-full ring-4 ring-[#020205] ${esDeSoyin ? 'bg-purple-500 shadow-[0_0_10px_rgba(168,85,247,0.8)]' : 'bg-rose-600 shadow-[0_0_10px_rgba(225,29,72,0.8)]'}`}></div>
                                                         <p className={`text-[10px] font-timer tracking-widest uppercase mb-1 flex items-center gap-2 ${esDeSoyin ? 'text-purple-400' : 'text-rose-400'}`}>
                                                             {formatearFechaSimple(entrada.fecha)} 
@@ -1263,6 +1273,13 @@
                                                         <div className={`bg-black/20 border p-5 mt-3 rounded-2xl font-body text-sm md:text-base leading-relaxed whitespace-pre-wrap shadow-lg ${esDeSoyin ? 'border-purple-500/20 text-purple-50' : 'border-rose-500/20 text-rose-50/90'}`}>
                                                             {entrada.texto}
                                                         </div>
+                                                        
+                                                        {canEdit && (
+                                                            <div className="absolute top-0 right-0 flex gap-2 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity bg-black/50 p-1 rounded-lg z-20">
+                                                                <button onClick={(e)=>{e.stopPropagation(); abrirEditor('diario', entrada.id, entrada.texto, entrada.fecha, entrada.hora);}} className="text-blue-400 hover:text-blue-300 p-2"><EditIcon size={16}/></button>
+                                                                <button onClick={(e)=>{e.stopPropagation(); eliminarDocumento('diario', entrada.id);}} className="text-red-500 hover:text-red-400 p-2"><TrashIcon size={16}/></button>
+                                                            </div>
+                                                        )}
                                                     </div>
                                                 </ContenedorMagico>
                                             );
@@ -1315,7 +1332,7 @@
                                         {latidosOrdenados.length === 0 && <p className="text-center text-white/40 italic">Aún no hay latidos guardados.</p>}
                                         {latidosOrdenados.map((l) => (
                                             <ContenedorMagico key={l.id} color="text-rose-500">
-                                                <div className="relative pl-6 md:pl-8 w-full">
+                                                <div className="relative pl-6 md:pl-8 w-full group">
                                                     <div className="absolute -left-[9px] top-1 w-4 h-4 rounded-full bg-rose-600 ring-4 ring-[#020205] shadow-[0_0_10px_rgba(225,29,72,0.8)]"></div>
                                                     <p className="text-[10px] font-timer tracking-widest uppercase mb-1 text-rose-400">
                                                         {formatearFechaHora(l.fecha, l.hora)}
@@ -1323,6 +1340,13 @@
                                                     <div className="bg-black/30 border border-rose-500/20 p-5 mt-3 rounded-2xl font-body text-sm md:text-base leading-relaxed whitespace-pre-wrap shadow-lg text-rose-100">
                                                         "{l.texto}"
                                                     </div>
+                                                    
+                                                    {isAnthony && (
+                                                        <div className="absolute top-0 right-0 flex gap-2 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity bg-black/50 p-1 rounded-lg z-20">
+                                                            <button onClick={(e)=>{e.stopPropagation(); abrirEditor('latidos', l.id, l.texto, l.fecha, l.hora);}} className="text-blue-400 hover:text-blue-300 p-2"><EditIcon size={16}/></button>
+                                                            <button onClick={(e)=>{e.stopPropagation(); eliminarDocumento('latidos', l.id);}} className="text-red-500 hover:text-red-400 p-2"><TrashIcon size={16}/></button>
+                                                        </div>
+                                                    )}
                                                 </div>
                                             </ContenedorMagico>
                                         ))}
@@ -1338,7 +1362,7 @@
                                         {mensajesSoyinOrdenados.length === 0 && <p className="text-center text-white/40 italic">Aún no hay latidos guardados.</p>}
                                         {mensajesSoyinOrdenados.map((msg) => (
                                             <ContenedorMagico key={msg.id} color="text-purple-400">
-                                                <div className="relative pl-6 md:pl-8 w-full">
+                                                <div className="relative pl-6 md:pl-8 w-full group">
                                                     <div className="absolute -left-[9px] top-1 w-4 h-4 rounded-full bg-purple-500 ring-4 ring-[#020205] shadow-[0_0_10px_rgba(168,85,247,0.8)]"></div>
                                                     <p className="text-[10px] font-timer tracking-widest uppercase mb-1 text-purple-400">
                                                         {formatearFechaHora(msg.fecha, msg.hora)}
@@ -1346,6 +1370,13 @@
                                                     <div className="bg-black/30 border border-purple-500/20 p-5 mt-3 rounded-2xl font-body text-sm md:text-base leading-relaxed whitespace-pre-wrap shadow-lg text-purple-100 italic">
                                                         "{msg.texto}"
                                                     </div>
+                                                    
+                                                    {isSoyin && (
+                                                        <div className="absolute top-0 right-0 flex gap-2 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity bg-black/50 p-1 rounded-lg z-20">
+                                                            <button onClick={(e)=>{e.stopPropagation(); abrirEditor('mensajes_soyin', msg.id, msg.texto, msg.fecha, msg.hora);}} className="text-blue-400 hover:text-blue-300 p-2"><EditIcon size={16}/></button>
+                                                            <button onClick={(e)=>{e.stopPropagation(); eliminarDocumento('mensajes_soyin', msg.id);}} className="text-red-500 hover:text-red-400 p-2"><TrashIcon size={16}/></button>
+                                                        </div>
+                                                    )}
                                                 </div>
                                             </ContenedorMagico>
                                         ))}
