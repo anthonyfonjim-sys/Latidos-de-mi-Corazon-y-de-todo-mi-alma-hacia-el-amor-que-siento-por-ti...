@@ -6,10 +6,15 @@
     <title>El Rincón de Soyin</title>
     
     <script src="https://cdn.tailwindcss.com"></script>
-    <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
-    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
-    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    
+    <!-- React y ReactDOM (Versiones estables y de producción) -->
+    <script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+    <script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+    
+    <!-- Babel (Para compilar tu código) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.6/babel.min.js"></script>
 
+    <!-- Firebase -->
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
@@ -502,7 +507,6 @@
                 </div>
             );
         };
-
 
         // ==========================================
         // COMPONENTES AUXILIARES
@@ -1366,7 +1370,7 @@
                                     <button onClick={()=>setAdminTabAnth('privado')} className={`px-6 py-3 rounded-xl text-xs uppercase tracking-widest font-bold transition-all whitespace-nowrap flex items-center gap-2 ${adminTabAnth === 'privado' ? 'bg-rose-600 text-white shadow-[0_0_20px_rgba(225,29,72,0.4)]' : 'bg-white/5 text-rose-300/70 border border-rose-500/20 hover:bg-rose-900/20'}`}><LockIcon size={14}/> Mi Espacio Secreto</button>
                                     <button onClick={()=>setAdminTabAnth('calendario')} className={`px-6 py-3 rounded-xl text-xs uppercase tracking-widest font-bold transition-all whitespace-nowrap ${adminTabAnth === 'calendario' ? 'bg-rose-600 text-white shadow-[0_0_20px_rgba(225,29,72,0.4)]' : 'bg-white/5 text-gray-400 hover:bg-white/10'}`}>📅 Calendario Compartido</button>
                                     <button onClick={()=>setAdminTabAnth('rutinas')} className={`px-6 py-3 rounded-xl text-xs uppercase tracking-widest font-bold transition-all whitespace-nowrap ${adminTabAnth === 'rutinas' ? 'bg-rose-600 text-white shadow-[0_0_20px_rgba(225,29,72,0.4)]' : 'bg-white/5 text-gray-400 hover:bg-white/10'}`}>⏰ Mis Rutinas</button>
-                                    <button onClick={()=>setAdminTabAnth('ajustes')} className={`px-6 py-3 rounded-xl text-xs uppercase tracking-widest font-bold transition-all whitespace-nowrap ${adminTabAnth === 'ajustes' ? 'bg-rose-600 text-white shadow-[0_0_20px_rgba(225,29,72,0.4)]' : 'bg-white/5 text-gray-400 hover:bg-white/10'}`}>⚙️ Ajustes Base</button>
+                                    <button onClick={()=>setAdminTabAnth('ajustes')} className={`px-6 py-3 rounded-xl text-xs uppercase tracking-widest font-bold transition-all whitespace-nowrap ${adminTabAnth === 'ajustes' ? 'bg-rose-600 text-white shadow-[0_0_20px_rgba(225,29,72,0.4)]' : 'bg-white/5 text-gray-400 hover:bg-white/10'}`}>⚙️️ Ajustes Base</button>
                                 </div>
 
                                 <div className="grid md:grid-cols-2 gap-8">
